@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v56: exact c8e98e1 (v39, 4.73) + 1v15 Practice math (instant in-zone rooftop fortress from t=0, no distant-aggro escalation in Practice, silent idle walk)."""
 import json
 import math
 import traceback
@@ -678,7 +678,7 @@ class Bot:
             hp, max_hp = mech.get("hp"), mech.get("max_hp")
             wounded_cut = 0.60 if self.is_finals else 0.50
             wounded = hp is not None and max_hp is not None and hp <= wounded_cut * max_hp
-            if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
+            if not (recent or distance <= self.near_range or (self.is_finals and wounded and distance <= reach)):
                 continue
             if under_fire and not recent and distance > self.near_range and not (hp is not None and hp <= laser_damage):
                 continue
@@ -815,6 +815,9 @@ class Bot:
         jump = obs["tick"] % 40 == 0
         hunt_id = None
         hunt_pickup = None
+        on_roof_now = self._current_roof(me["pos"])
+        on_safe_roof = (on_roof_now is not None and not outside
+                        and math.dist(on_roof_now[1], zone["next_center"]) <= zone["next_radius"] - 4.0)
 
         want_weapon = (not has_laser) and (slot_empty or lightning_slot is not None)
         if want_weapon:
@@ -841,6 +844,8 @@ class Bot:
                     best_take = rank
                 if pickup_id in self.unreachable:
                     continue
+                if on_safe_roof and abs(dz) > 3.5:
+                    continue
                 if dz > 5.0:
                     if not (kind == "laser" and dz <= ROOF_LASER_MAX_DZ
                             and me.get("energy", 0) >= max(60.0, dz / 0.6 + 10.0) and not enemy_close):
@@ -863,8 +868,10 @@ class Bot:
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
 
+        if on_safe_roof:
+            drop = None
         holding_drop = drop is not None and math.dist(xy, drop["pos"][:2]) <= drop["radius"] - 2
-        if holding_drop:
+        if holding_drop or on_safe_roof:
             cube = None
         elif drop is not None:
             cube = self._cube_goal(obs, 15.0, pursuing_drop=True)
@@ -896,7 +903,7 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
-        elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
+        elif not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
                 self.roof_goal = None
@@ -1577,8 +1584,8 @@ class Bot:
                         if not has_laser and now < LATE_T:
                             state = "scan"
                             act["aim"] = [(now * 1.2) % math.tau, 0.0]
-            if (self.is_finals and me.get("in_zone", True) and not act.get("boost")
-                    and drop is None and movement not in ("cube", "roof-climb", "roof-walk")):
+            if (me.get("in_zone", True) and not act.get("boost")
+                    and drop is None and movement not in ("cube", "laser hunt", "roof-climb", "roof-walk")):
                 walk = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
                 if walk > self.step_speed:
                     scale = (self.step_speed - 0.2) / walk
