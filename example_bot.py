@@ -14,6 +14,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_NO_AUTOJUMP = True       # v45: no kit auto-jump every 2 s; no accidental air-boost (jet)
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -268,6 +269,7 @@ class Bot:
         self.last_near_sound = None
         self.short_until = -math.inf
         self.last_beam_threat = None
+        self.want_jet_until = -math.inf
         self.pickups = {}
         self.cubes = {}
         self.cube_progress = (None, math.inf, 0.0)
@@ -812,7 +814,7 @@ class Bot:
         state = "zone"
         outside = not me["in_zone"]
         boost = outside
-        jump = obs["tick"] % 40 == 0
+        jump = False if USE_NO_AUTOJUMP else (obs["tick"] % 40 == 0)
         hunt_id = None
         hunt_pickup = None
 
@@ -884,7 +886,7 @@ class Bot:
             distance = math.hypot(dx, dy)
             act.update(move=[0.0, 0.0] if holding_drop else [dx / distance, dy / distance],
                        aim=[yaw, 0.0], boost=not holding_drop and me["energy"] >= 30 and distance > 30,
-                       jump=not holding_drop and obs["tick"] % 40 == 0)
+                       jump=(not holding_drop and obs["tick"] % 40 == 0) and not USE_NO_AUTOJUMP)
             return f"drop-hold {drop['progress']:.1f}/{drop['capture_s']:g}s" if holding_drop else "drop-walk"
         elif hunt_id is not None:
             best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
@@ -896,6 +898,7 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
+                    self.want_jet_until = max(self.want_jet_until, now + 0.6)
         elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
@@ -941,6 +944,7 @@ class Bot:
                         move_yaw = math.atan2(center_xy[1] - xy[1], center_xy[0] - xy[0])
                         jump = bool(me.get("grounded", False))
                         boost = me.get("energy", 0) >= 15
+                        self.want_jet_until = max(self.want_jet_until, now + 0.6)
                     else:
                         state = "roof-walk"
                         move_yaw = math.atan2(climb_xy[1] - xy[1], climb_xy[0] - xy[0])
@@ -1329,6 +1333,7 @@ class Bot:
             if now - self.unstick_started <= 0.5 and me.get("energy", 0) >= 60:
                 act["jump"] = bool(me.get("grounded", False))
                 act["boost"] = True
+                self.want_jet_until = max(self.want_jet_until, now + 0.6)
 
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
@@ -1619,6 +1624,9 @@ class Bot:
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
+        if (USE_NO_AUTOJUMP and movement != "roof-climb" and now > self.want_jet_until
+                and not act.get("jump") and not me.get("grounded", True)):
+            act["boost"] = False
         # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
         mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
         label = (f"{mode_tag}{movement} {state} hp{me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"
