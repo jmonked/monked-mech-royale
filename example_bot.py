@@ -1,6 +1,7 @@
 """v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
 import json
 import math
+import random
 import traceback
 from pathlib import Path
 
@@ -289,6 +290,10 @@ class Bot:
         self.unstick_streak = 0
         self.is_finals = False
         self.finals_t = None          # point 8: timestamp when Finals FFA switch tripped
+        self.strafe_dir = 1.0
+        self.strafe_flip_at = 0.0
+        self.strafe_kick_until = -math.inf
+        self.strafe_rng = random.Random(hello.get("seed") or 1)
         self._now = 0.0
         self._los_cache = {}
         try:
@@ -630,6 +635,24 @@ class Bot:
             fired_at = now - beam.get("age", 0.0)
             if self.last_beam_threat is None or fired_at >= self.last_beam_threat[0]:
                 self.last_beam_threat = (fired_at, bearing, origin)
+
+    def _duel_strafe(self, now, target, me):
+        """Strafe side with random flip timing; flag a short boost kick on flips while the target is on us."""
+        aimed = False
+        aim = target.get("aim")
+        if aim and aim[0] is not None and target.get("pos"):
+            to_me = math.atan2(me["pos"][1] - target["pos"][1], me["pos"][0] - target["pos"][0])
+            aimed = abs(math.remainder(aim[0] - to_me, math.tau)) <= math.radians(8.0)
+        hit_recent = now - self.last_hits.get(target.get("id"), (-math.inf, None))[0] <= 2.0
+        if now >= self.strafe_flip_at:
+            self.strafe_dir = -self.strafe_dir
+            if aimed or target.get("charging"):
+                self.strafe_flip_at = now + self.strafe_rng.uniform(0.35, 0.75)
+            else:
+                self.strafe_flip_at = now + self.strafe_rng.uniform(0.45, 1.10)
+            if hit_recent or aimed:
+                self.strafe_kick_until = now + 0.20
+        return self.strafe_dir
 
     def _eff_hp(self, mech, has_laser):
         hp = mech.get("hp")
@@ -1482,7 +1505,7 @@ class Bot:
                 act["boost"] = me.get("energy", 0) >= 30 and not charging
                 state += " wedge"
             elif movement in ("zone", "laser hunt", "drop-walk"):
-                s_sign = _strafe_sign(now)
+                s_sign = self._duel_strafe(now, target, me)
                 if self._should_push(obs, target):
                     dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
                     dist = math.hypot(dx, dy)
@@ -1496,6 +1519,10 @@ class Bot:
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
+                if (now < self.strafe_kick_until and not charging and me.get("energy", 0) >= 45
+                        and me.get("grounded", True)):
+                    act["boost"] = True
+                    state += " kick"
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
