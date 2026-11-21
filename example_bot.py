@@ -14,6 +14,7 @@ USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holde
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
+USE_CRATE_HUNT = True        # v36: no laser yet -> walk to a crate within 80 m (give up after 6 s without progress)
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
@@ -271,6 +272,8 @@ class Bot:
         self.cubes = {}
         self.cube_progress = (None, math.inf, 0.0)
         self.unreachable = set()
+        self.crate_giveup = set()
+        self.crate_progress = {}
         self.unreachable_roofs = set()
         self.roof_goal = None
         self.hunt_progress = {}
@@ -892,6 +895,27 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
+        elif (USE_CRATE_HUNT and not has_laser and now < 150.0 and self.target_id is None and not outside
+              and not enemy_close and drop is None and cube is None and hunt_id is None):
+            best_crate = None
+            best_cd = math.inf
+            for crate in obs.get("crates") or []:
+                cx, cy, cz = crate["pos"]
+                cd = math.dist(xy, (cx, cy))
+                if (cd <= 80.0 and abs(cz - mz) <= 4.0 and crate["id"] not in self.crate_giveup
+                        and math.dist((cx, cy), zone["next_center"]) <= zone["next_radius"]
+                        and cd < best_cd):
+                    best_crate, best_cd = crate, cd
+            if best_crate is not None and best_cd > 25.0:
+                # give up on a crate after 6 s without getting 1 m closer
+                c_best, c_since = self.crate_progress.get(best_crate["id"], (math.inf, now))
+                if best_cd < c_best - 1:
+                    self.crate_progress[best_crate["id"]] = (best_cd, now)
+                elif now - c_since > 6:
+                    self.crate_giveup.add(best_crate["id"])
+                state = "crate-hunt"
+                move_yaw = math.atan2(best_crate["pos"][1] - xy[1], best_crate["pos"][0] - xy[0])
+                boost = me.get("energy", 0) >= 40 and best_cd > 35.0
         elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
