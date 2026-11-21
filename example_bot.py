@@ -1,4 +1,4 @@
-"""v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
+"""v34c: v34 (4.67) + review/critic bug fixes + YY reload. v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
 more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
 import json
 import math
@@ -15,6 +15,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_YY_RELOAD = True         # v34c: top the gun up (<= 70% mag) in quiet moments so every fight starts full
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -569,7 +570,7 @@ class Bot:
             dist_c = math.dist(xy, center)
             move = [(center[0] - xy[0]) / dist_c, (center[1] - xy[1]) / dist_c] if dist_c > 2.5 else [0.0, 0.0]
             act.update(move=move, boost=False, aim=[yaw, 0.0])
-            mf.draw.label(f"roof-heal {me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"[:80])
+            mf.draw.label(f"roof-heal {me['hp'] / me['max_hp']:.0%} c{(me.get('cubes') or 0)}"[:80])
             return True
 
         if threat is None:
@@ -592,7 +593,7 @@ class Bot:
             if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
                 move = [ux, uy]
         act.update(move=move, boost=boost, aim=[yaw, 0.0])
-        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"[:80])
+        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%} c{(me.get('cubes') or 0)}"[:80])
         return True
 
     def _remember_damage(self, events, now):
@@ -637,7 +638,10 @@ class Bot:
         elif mech.get("charging"):
             eff *= 0.85
         # Point 11: in Finals FFA, prioritize mechs actively taking third-party damage.
-        if USE_FFA_THIRD_PARTY and self.is_finals and self._now - self.hp_drop_t.get(mech.get("id"), -math.inf) <= 2.0:
+        if USE_FFA_THIRD_PARTY and self.is_finals and (
+                self._now - self.hp_drop_t.get(mech.get("id"), -math.inf) <= 2.0
+                or (mech.get("id") == self.target_id
+                    and self._now - self.recent_dealt.get(mech.get("id"), -math.inf) <= 1.0)):
             eff *= 0.8
         return eff
 
@@ -961,7 +965,11 @@ class Bot:
                 hp = m.get("hp")
                 if hp is not None:
                     prev_hp = self.hp_seen.get(m["id"])
-                    if prev_hp and hp < prev_hp[1] - 1 and now - self.recent_dealt.get(m["id"], -math.inf) > 0.5:
+                    zone = getattr(self, "_zone", None)
+                    in_circle = (zone is None or not zone.get("center") or zone.get("radius") is None
+                                 or math.dist(m["pos"][:2], zone["center"]) <= zone["radius"])
+                    if (prev_hp and now - prev_hp[0] <= 0.3 and in_circle and hp < prev_hp[1] - 1
+                            and now - self.recent_dealt.get(m["id"], -math.inf) > 0.5):
                         self.hp_drop_t[m["id"]] = now
                     self.hp_seen[m["id"]] = (now, hp)
 
@@ -1150,7 +1158,9 @@ class Bot:
     def _maybe_early_reload(self, weapons, act):
         for w in weapons[:2]:
             if w and w["kind"] == "gun":
-                if (w.get("reload") or 0) <= 0 and (w.get("ammo") is not None) and 0 < w["ammo"] <= 6:
+                mag = _stat(w.get("stats") or {}, "mag", 12) or 12
+                limit = max(6, int(0.7 * mag)) if USE_YY_RELOAD else 6
+                if (w.get("reload") or 0) <= 0 and (w.get("ammo") is not None) and 0 < w["ammo"] <= limit:
                     act["reload"] = True
                 return
 
@@ -1185,7 +1195,7 @@ class Bot:
         self._fight(me, weapons, drone, act)
         return True
 
-    def _shoot_crate(self, obs, weapons, act):
+    def _shoot_crate(self, obs, weapons, act, gun_only=False):
         me = obs["self"]
         x, y, z = me["pos"]
         zone = obs["zone"]
@@ -1208,7 +1218,9 @@ class Bot:
             max(0.5, min(5.0, math.degrees(math.atan2(0.8 * self.crate_radius, max(distance, 1.0))))))
         laser_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "laser"
                            and (w.get("cooldown", 0) <= 0 or (w.get("charge") or 0) > 0)), None)
-        if laser_slot is not None:
+        if gun_only and not any(w and w["kind"] == "gun" for w in weapons[:2]):
+            return False
+        if laser_slot is not None and not gun_only:
             w = weapons[laser_slot]
             full = 0.93 * _stat(w.get("stats") or {}, "charge", self.laser.get("charge", 0.75))
             act["fire"][laser_slot] = not ((w.get("charge") or 0) >= full + 0.04 and on)
@@ -1375,6 +1387,7 @@ class Bot:
     def act(self, obs: mf.Observation) -> mf.Action:
         self.laser_released = False
         self._now = obs.get("t", 0.0)
+        self._zone = obs.get("zone")
         self._los_cache.clear()
         try:
             action = self._act(obs)
@@ -1431,7 +1444,7 @@ class Bot:
         if choices:
             act["pick"] = min(range(len(choices)),
                               key=lambda i: UPGRADE_RANK.get(choices[i].get("id"), len(UPGRADE_RANK)))
-        target = self._choose_target(mechs, me["pos"], now, weapons, me.get("cubes", 0))
+        target = self._choose_target(mechs, me["pos"], now, weapons, (me.get("cubes") or 0))
         finishing = (target is not None and target.get("hp") is not None and target.get("max_hp")
                      and target["hp"] <= 0.3 * target["max_hp"] and target["hp"] < me["hp"])
         healing = not finishing and self._heal(obs, act)
@@ -1461,6 +1474,8 @@ class Bot:
         state = "idle"
         charging = False
         pushing = False
+        escape = None
+        on_roof_now = self._current_roof(me["pos"]) is not None
         if target is not None:
             hp = target.get("hp")
             state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
@@ -1486,9 +1501,12 @@ class Bot:
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
-            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
+            if (USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and escape is None
+                    and not movement.startswith("roof") and me.get("in_zone", True)):
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
-                laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
+                # Only hide if nothing else can shoot soon (no laser = lightning/mortar may still be ready).
+                laser_busy = not any(w and w["kind"] != "gun" and (w.get("cooldown") or 0) <= 0.5
+                                     for w in weapons[:2])
                 hit = self.last_hits.get(target["id"])
                 being_shot = hit is not None and now - hit[0] <= 2.0
                 if reloading and laser_busy and being_shot and not self._target_blocked(me, target):
@@ -1497,7 +1515,7 @@ class Bot:
                         # On a rooftop, pull back toward roof center instead of walking off the edge.
                         rc = on_roof[1]
                         d = math.dist(me["pos"][:2], rc)
-                        if d > 2.0:
+                        if d > 2.0 and _point_in_prism_2d(rc[0], rc[1], on_roof[3], on_roof[4]):
                             act["move"] = [(rc[0] - me["pos"][0]) / d, (rc[1] - me["pos"][1]) / d]
                             act["boost"] = False
                             state += " cover"
@@ -1519,8 +1537,11 @@ class Bot:
                 # Point 16: break crates when no mech is within 120 m and nobody hit us in 5 s.
                 near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
                                    and math.dist(m["pos"], me["pos"]) <= 120.0 for m in mechs)
-                               or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5))
-                if USE_MORE_CUBES and not near_threat and self._shoot_crate(obs, weapons, act):
+                               or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5)
+                               or (self.last_beam_threat is not None and now - self.last_beam_threat[0] <= 3)
+                               or (self.last_sound is not None and now - self.last_sound[0] <= 2))
+                if (USE_MORE_CUBES and not near_threat and (me.get("cubes") or 0) < DRONE_CUBE_CAP
+                        and self._shoot_crate(obs, weapons, act, gun_only=True)):
                     state = "crate"
                 else:
                     bearing = self._face_bearing(mechs, me["pos"], now)
@@ -1545,12 +1566,13 @@ class Bot:
 
         # Point 17: head straight into next circle before shrink time runs out.
         z = obs["zone"]
-        if USE_ZONE_EARLY and me.get("in_zone", True) and not holding_drop:
+        if (USE_ZONE_EARLY and me.get("in_zone", True) and not holding_drop and escape is None
+                and not movement.startswith("roof") and not on_roof_now and "silent" not in state):
             d_next = math.dist(me["pos"][:2], z["next_center"])
             excess = d_next - max(z["next_radius"] - 10.0, 2.0)
             secs_left = (z.get("shrink_end") or now) - now
             speed = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
-            if excess > 0 and secs_left > 0 and excess / speed > 0.6 * secs_left and d_next > 1e-6:
+            if speed > 0 and excess > 0 and secs_left > 0 and excess / speed > 0.6 * secs_left and d_next > 1e-6:
                 act["move"] = [(z["next_center"][0] - me["pos"][0]) / d_next,
                                (z["next_center"][1] - me["pos"][1]) / d_next]
                 act["boost"] = me.get("energy", 0) >= 30 and not charging
@@ -1578,7 +1600,7 @@ class Bot:
             self._apply_unstick(obs, act, charging)
         # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
         mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
-        label = (f"{mode_tag}{movement} {state} hp{me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"
+        label = (f"{mode_tag}{movement} {state} hp{me['hp'] / me['max_hp']:.0%} c{(me.get('cubes') or 0)}"
                  + (" chg" if charging else ""))
         mf.draw.label(label[:80])
         return act
