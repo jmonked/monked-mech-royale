@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v42: v39 (4.73) + multi-attacker 85% cover disengage + faster early laser scan (2.4 rad/s) & 220m early drop chase."""
 import json
 import math
 import traceback
@@ -539,7 +539,12 @@ class Bot:
     def _heal(self, obs, act):
         me = obs["self"]
         pos = me["pos"]
-        threshold = 0.85 if self.healing else (0.65 if self.is_finals else 0.5)
+        now_t = obs["t"]
+        multi_attackers = sum(
+            1 for aid, (ht, _) in self.last_hits.items()
+            if 0 <= aid < 16 and aid != me["id"] and now_t - ht <= 2.5
+        )
+        threshold = 0.85 if (self.healing or multi_attackers >= 2) else (0.65 if self.is_finals else 0.5)
         if not me["in_zone"] or me["hp"] >= threshold * me["max_hp"]:
             self.healing = False
             return False
@@ -705,7 +710,8 @@ class Bot:
     def _drop_goal(self, obs, healing):
         me, zone, now = obs["self"], obs["zone"], obs["t"]
         healthy = me["hp"] >= 0.75 * me["max_hp"]
-        max_drop_dist = DROP_HEALTHY_DIST if healthy else 250.0
+        has_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
+        max_drop_dist = 220.0 if (not has_laser and now < 150.0) else (DROP_HEALTHY_DIST if healthy else 250.0)
         best = None
         best_distance = math.inf
         for drop in obs.get("drops") or []:
@@ -1499,10 +1505,10 @@ class Bot:
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
-                 if aid != target["id"] and now - t_hit <= 2.5),
+                 if 0 <= aid < 16 and aid != me["id"] and aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and me.get("in_zone", True) and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
@@ -1576,7 +1582,8 @@ class Bot:
                         has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
                         if not has_laser and now < LATE_T:
                             state = "scan"
-                            act["aim"] = [(now * 1.2) % math.tau, 0.0]
+                            scan_rate = 2.4 if now < 90.0 else 1.2
+                            act["aim"] = [(now * scan_rate) % math.tau, 0.0]
             if (self.is_finals and me.get("in_zone", True) and not act.get("boost")
                     and drop is None and movement not in ("cube", "roof-climb", "roof-walk")):
                 walk = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
