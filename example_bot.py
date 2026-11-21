@@ -10,6 +10,7 @@ import mechfight as mf
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
+HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
     "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
@@ -569,6 +570,17 @@ class Bot:
         healing = not finishing and self._heal(obs, act)
         drop = self._drop_goal(obs, healing)
         if healing:
+            # Still being shot (regen is paused anyway): shoot back at that attacker while retreating.
+            if target is not None:
+                hit = self.last_hits.get(target["id"])
+                if hit is not None and now - hit[0] <= HEAL_FIGHTBACK_S:
+                    move, boost = act["move"], act.get("boost")
+                    self._fight(me, weapons, target, act)
+                    act.update(move=move, boost=boost)
+                    # Don't start a laser charge here: it would halve our speed on the way to cover.
+                    for i, weapon in enumerate(weapons[:2]):
+                        if weapon and weapon["kind"] == "laser" and not (weapon.get("charge") or 0) > 0:
+                            act["fire"][i] = False
             return act
         movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act, drop)
         state = "idle"

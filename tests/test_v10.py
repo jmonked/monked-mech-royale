@@ -135,7 +135,7 @@ def a7_emergency_heal_still_possible():
     o = make_obs(hp=500, mechs=[mech(5, 120, 0)], events=[hit(5)])
     a = b.act(o)
     assert b.healing, "expected heal mode"
-    assert a["fire"] == [False, False], a["fire"]
+    assert math.hypot(*a["move"]) > 0.5, "retreat movement still happens"
 
 
 @test
@@ -363,6 +363,53 @@ def d3_close_crossing_target_released_quickly():
     else:
         raise AssertionError("never released")
     assert k - full_at <= 2, (k, full_at)
+
+
+# ----------------------------------------------------------------- Build C: heal fight-back
+@test
+def c1_heal_shoots_back_at_active_attacker():
+    b = bot()
+    o = make_obs(hp=600, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), laser()], aim=(0.0, 0.0))
+    a = b.act(o)
+    assert b.healing
+    assert a["fire"][0] is True, "gun shoots back at the mech that is shooting us"
+    assert a["fire"][LASER] is False, "no new laser charge: it would halve our retreat speed"
+    ref = bot().act(make_obs(hp=600, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), None]))
+    assert ref["move"] == a["move"], "retreat path must not change"
+
+
+@test
+def c2_heal_quiet_after_damage_stops():
+    b = bot()
+    b.act(make_obs(t=20.0, hp=600, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), None]))
+    a = b.act(make_obs(t=22.5, hp=600, mechs=[mech(5, 120, 0)], weapons=[gun(), None], aim=(0.0, 0.0)))
+    assert b.healing
+    assert a["fire"] == [False, False], "no damage for 2.5 s: hold fire so regen can start"
+
+
+@test
+def c3_close_enemy_means_fight_not_heal():
+    b = bot()
+    a = b.act(make_obs(hp=600, mechs=[mech(5, 30, 0)], events=[hit(5)], weapons=[gun(), None], aim=(0.0, 0.0)))
+    assert not b.healing
+    assert a["fire"][0] is True
+
+
+@test
+def c4_sudden_attack_during_heal():
+    b = bot()
+    b.act(make_obs(t=20.0, hp=600, mechs=[mech(5, 150, 0)], weapons=[gun(), None]))
+    assert b.healing
+    a = b.act(make_obs(t=20.1, hp=560, mechs=[mech(5, 150, 0)], events=[hit(5)], weapons=[gun(), None],
+                       aim=(0.0, 0.0)))
+    assert b.healing and a["fire"][0] is True
+
+
+@test
+def c5_heal_outside_zone_does_not_engage():
+    b = bot()
+    a = b.act(make_obs(hp=600, in_zone=False, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), None]))
+    assert not b.healing  # v8 rule: never heal outside the zone (regen is off there)
 
 
 @test
