@@ -446,6 +446,60 @@ def h3_early_wounded_still_chased():
     assert b.target_id == 7
 
 
+# ----------------------------------------------------------------- v22: become the biggest mech
+def crate(cid, x, y, z=0.0):
+    return {"id": cid, "pos": [x, y, z], "hp": 300}
+
+
+@test
+def l1_gun_breaks_nearby_crate_when_aimed():
+    b = bot()
+    o = make_obs(t=30.0, weapons=[gun(), None], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+    a = b.act(o)
+    assert a["fire"][0] is True and abs(a["aim"][0]) < 1e-6, a
+
+
+@test
+def l2_laser_crate_shot_waits_for_full_charge():
+    b = bot()
+    o = make_obs(t=30.0, weapons=[gun(), laser(charge=0.7)], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+    assert b.act(o)["fire"][LASER] is True, "0.7 s charge does ~301: too close to 300 HP"
+    o = make_obs(t=30.1, weapons=[gun(), laser(charge=0.75)], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+    assert b.act(o)["fire"][LASER] is False, "full charge and aimed: fire"
+
+
+@test
+def l3_roof_crate_and_far_crate_ignored():
+    b = bot()
+    o = make_obs(t=30.0, weapons=[gun(), None], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0, z=12), crate(1002, 80, 0)]
+    a = b.act(o)
+    assert a["fire"] == [False, False]
+
+
+@test
+def l4_no_crate_while_a_mech_is_in_view():
+    b = bot()
+    o = make_obs(t=30.0, weapons=[gun(), None], mechs=[mech(5, 0, 150)], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+    a = b.act(o)
+    assert a["fire"][0] is False and abs(a["aim"][0] - math.pi / 2) < 1e-6
+
+
+@test
+def l5_cubes_past_the_cap_still_collected():
+    b = bot()
+    o = make_obs(t=30.0, cubes=12); o["zone"]["next_center"] = [0, -100]; o["cubes"] = [{"id": 5001, "pos": [30.0, 0.0, 0.0]}]
+    a = b.act(o)
+    assert a["move"][0] > 0.99, a["move"]
+
+
+@test
+def l6_idle_cube_reach_60m():
+    b = bot()
+    o = make_obs(t=30.0); o["zone"]["next_center"] = [0, -100]; o["cubes"] = [{"id": 5001, "pos": [55.0, 0.0, 0.0]}]
+    a = b.act(o)
+    assert a["move"][0] > 0.99, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:

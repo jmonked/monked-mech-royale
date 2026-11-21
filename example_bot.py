@@ -9,6 +9,8 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting)
+CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
@@ -96,6 +98,9 @@ class Bot:
         self.lightning = (config.get("weapons") or {}).get("lightning") or {}
         self.muzzle_height = _stat(config.get("mech") or {}, "muzzle_height", 7)
         self.mech_radius = _stat(config.get("mech") or {}, "radius", 2.5)
+        crates = config.get("crates") or {}
+        self.crate_radius = _stat(crates, "radius", 1.4)
+        self.crate_height = _stat(crates, "height", 2.4)
         self.size_per_cube = _stat(cubes, "size_per_cube", 0.05)
         self.laser_released = False
         self.laser_target = None      # id of the mech the laser was last charged at
@@ -310,7 +315,8 @@ class Bot:
                                      or (cube_id not in visible and distance <= 4)):
                 del self.cubes[cube_id]
                 continue
-            if (not pursuing_drop and me.get("cubes", 0) < self.cube_cap and height <= 3.5
+            # No cube cap: past 10 cubes there are no more stat gains, but 15/21/28/... still give upgrades.
+            if (not pursuing_drop and height <= 3.5
                     and distance <= max_distance and cube_id not in self.unreachable
                     and math.dist(location[:2], zone["next_center"]) <= zone["next_radius"]):
                 options.append((distance, cube_id))
@@ -370,7 +376,8 @@ class Bot:
         # Preserve the default facing even when collecting a drop or cube.
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
-        cube = self._cube_goal(obs, 15 if hunt_id is not None else 40, pursuing_drop=drop is not None)
+        cube_reach = 15 if hunt_id is not None else (CUBE_IDLE_RANGE if self.target_id is None else 40)
+        cube = self._cube_goal(obs, cube_reach, pursuing_drop=drop is not None)
         if drop is not None:
             self.hunt_progress.pop(hunt_id, None)
             dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
@@ -490,6 +497,43 @@ class Bot:
         act["aim"] = direct if use_direct else aim
         return charging
 
+    def _shoot_crate(self, obs, weapons, act):
+        """Nothing to fight or watch: break the nearest open ground crate within cube reach
+        (1 cube, 50% a weapon). Laser if ready (one full charge kills 300 HP), else the gun. Aimed only."""
+        me = obs["self"]
+        x, y, z = me["pos"]
+        zone = obs["zone"]
+        best = None
+        for crate in obs.get("crates") or []:
+            cx, cy, cz = crate["pos"]
+            distance = math.hypot(cx - x, cy - y)
+            if (distance <= CRATE_RANGE and abs(cz - z) <= 3 and (best is None or distance < best[1])
+                    and math.dist((cx, cy), zone["next_center"]) <= zone["next_radius"]):
+                best = (crate, distance)
+        if best is None:
+            return False
+        crate, distance = best
+        cx, cy, cz = crate["pos"]
+        muzzle = z + _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
+        yaw = math.atan2(cy - y, cx - x)
+        act["aim"] = [yaw, math.atan2(cz + self.crate_height / 2 - muzzle, max(distance, 1.0))]
+        actual = me.get("aim") or [None]
+        on = actual[0] is not None and abs(math.remainder(yaw - actual[0], math.tau)) <= math.radians(
+            max(0.5, min(5.0, math.degrees(math.atan2(0.8 * self.crate_radius, max(distance, 1.0))))))
+        laser_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "laser"
+                           and (w.get("cooldown", 0) <= 0 or (w.get("charge") or 0) > 0)), None)
+        if laser_slot is not None:
+            w = weapons[laser_slot]
+            full = 0.93 * _stat(w.get("stats") or {}, "charge", self.laser.get("charge", 0.75))
+            # Hold to a true full charge (the 93% release does ~301, a hair over the crate's 300 HP).
+            act["fire"][laser_slot] = not ((w.get("charge") or 0) >= full + 0.04 and on)
+            self.laser_released = not act["fire"][laser_slot]
+            return True
+        gun_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "gun"), None)
+        if gun_slot is not None:
+            act["fire"][gun_slot] = on
+        return True
+
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
             if (sound.get("kind") not in ("gun", "laser", "laser_charge", "lightning", "mortar")
@@ -598,6 +642,8 @@ class Bot:
             if bearing is not None:
                 state = "face"
                 act["aim"] = [bearing, 0.0]
+            elif self._shoot_crate(obs, weapons, act):
+                state = "crate"
         mf.draw.label(f"{movement} {state}" + (" chg" if charging else ""))
         return act
 
