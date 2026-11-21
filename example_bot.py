@@ -678,11 +678,11 @@ class Bot:
             hp, max_hp = mech.get("hp"), mech.get("max_hp")
             wounded_cut = 0.60 if self.is_finals else 0.50
             wounded = hp is not None and max_hp is not None and hp <= wounded_cut * max_hp
-            if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
+            if not (recent or distance <= self.near_range or ((not self.is_finals or wounded) and distance <= reach)):
                 continue
             if under_fire and not recent and distance > self.near_range and not (hp is not None and hp <= laser_damage):
                 continue
-            if now >= LATE_T and not recent and distance > self.near_range:
+            if self.is_finals and now >= LATE_T and not recent and distance > self.near_range:
                 continue
             if mech_id == self.target_id:
                 current = mech
@@ -1014,7 +1014,7 @@ class Bot:
             if self.laser_full_since is not None and self._now - self.laser_full_since >= 0.8:
                 return yaw <= min(2 * gate, width) and pitch <= height
             return yaw <= gate and pitch <= 0.8 * height
-        gate = min(width, math.radians(12), max(math.radians(0.1), width - 0.25 * math.radians(spread)))
+        gate = min(1.35 * width, math.radians(12), max(math.radians(0.15), 1.35 * width - 0.25 * math.radians(spread)))
         return math.hypot(yaw, pitch * width / max(height, 1e-6)) <= gate
 
     def _laser_ready(self, me, weapon, target):
