@@ -892,6 +892,20 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
+        elif (not has_laser and now < 60.0 and not outside and self.target_id is None
+              and drop is None and cube is None and hunt_id is None and self.buildings):
+            best_cov = None
+            best_cd = math.inf
+            for b_center, _r, _rg, _h, _b, _t in self.buildings:
+                if math.dist(b_center, zone["next_center"]) > max(0.0, zone["next_radius"] - 10.0):
+                    continue
+                cd = math.dist(xy, b_center)
+                if cd < best_cd:
+                    best_cov, best_cd = b_center, cd
+            if best_cov is not None and best_cd > 16.0:
+                state = "early-cov"
+                move_yaw = math.atan2(best_cov[1] - xy[1], best_cov[0] - xy[0])
+                boost = False
         elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
