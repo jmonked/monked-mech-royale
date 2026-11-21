@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v41: v40 + laser-distance kiting (120m push stop / <95m kite back), cover when shot & cannot shoot back, and steady-aim stop on laser release."""
 import json
 import math
 import traceback
@@ -30,7 +30,7 @@ PUSH_CLEAR = 80.0      # and no other mech is this close to us
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
-DUEL_STRAFE_RAD = math.radians(35)  # diagonal angle during pushes/duels to dodge 252 m/s gun fire
+DUEL_STRAFE_RAD = math.radians(55)  # diagonal angle during pushes/duels to dodge 252 m/s gun fire
 ROOF_LASER_MAX_DZ = 30.0  # max vertical climb for a rooftop laser when unpressured
 ROOF_CLAIM_MAX_H = 45.0   # max building height to claim as a rooftop fortress
 ROOF_MIN_RADIUS = 8.0     # minimum roof radius so we can pull back from the edge safely
@@ -539,7 +539,7 @@ class Bot:
     def _heal(self, obs, act):
         me = obs["self"]
         pos = me["pos"]
-        threshold = 0.85 if self.healing else (0.65 if self.is_finals else 0.5)
+        threshold = 0.85 if self.healing else (0.65 if self.is_finals else 0.60)
         if not me["in_zone"] or me["hp"] >= threshold * me["max_hp"]:
             self.healing = False
             return False
@@ -705,7 +705,8 @@ class Bot:
     def _drop_goal(self, obs, healing):
         me, zone, now = obs["self"], obs["zone"], obs["t"]
         healthy = me["hp"] >= 0.75 * me["max_hp"]
-        max_drop_dist = DROP_HEALTHY_DIST if healthy else 250.0
+        has_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
+        max_drop_dist = 220.0 if (not has_laser and now < 150.0) else (DROP_HEALTHY_DIST if healthy else 250.0)
         best = None
         best_distance = math.inf
         for drop in obs.get("drops") or []:
@@ -896,7 +897,7 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
-        elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
+        elif (now >= LATE_T or self.is_finals or (now >= 155.0 and (me.get("cubes") or 0) >= 5)) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
                 self.roof_goal = None
@@ -1046,7 +1047,7 @@ class Bot:
             if math.dist(me["pos"], m["pos"]) > reach:
                 continue
             to_alt = math.atan2(m["pos"][1] - my, m["pos"][0] - mx)
-            if abs(math.remainder(to_alt - actual_yaw, math.tau)) > math.radians(30.0):
+            if abs(math.remainder(to_alt - actual_yaw, math.tau)) > math.radians(60.0):
                 continue
             if self._target_blocked(me, m):
                 continue
@@ -1238,7 +1239,11 @@ class Bot:
             if hp is None or max_hp is None or hp > 0.5 * max_hp:
                 return False
         distance = math.dist(me["pos"][:2], target["pos"][:2])
-        if not PUSH_STOP <= distance <= PUSH_RANGE:
+        has_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
+        hp, max_hp = target.get("hp"), target.get("max_hp")
+        finishing = hp is not None and max_hp is not None and (hp <= 0.35 * max_hp or hp <= 350.0)
+        min_push = 120.0 if (has_laser and not finishing) else PUSH_STOP
+        if not min_push <= distance <= PUSH_RANGE:
             return False
         hp, cubes = target.get("hp"), target.get("cubes") or 0
         has_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
@@ -1483,6 +1488,8 @@ class Bot:
                 state += " wedge"
             elif movement in ("zone", "laser hunt", "drop-walk"):
                 s_sign = _strafe_sign(now)
+                has_laser_now = any(w and w["kind"] == "laser" for w in weapons[:2])
+                t_dist = math.dist(me["pos"][:2], target["pos"][:2])
                 if self._should_push(obs, target):
                     dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
                     dist = math.hypot(dx, dy)
@@ -1490,19 +1497,25 @@ class Bot:
                         push_dir = [dx / dist, dy / dist]
                         act["move"] = self._rotate_move_safe(push_dir, s_sign * DUEL_STRAFE_RAD,
                                                              me["pos"][:2], obs["zone"])
-                        act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
+                        act["boost"] = me.get("energy", 0) >= 65 and dist > 80 and not charging
                         pushing = True
                         state += " push"
+                elif has_laser_now and t_dist < 95.0 and not finishing and me.get("in_zone", True) and t_dist > 1e-6:
+                    dx, dy = me["pos"][0] - target["pos"][0], me["pos"][1] - target["pos"][1]
+                    kite_dir = [dx / t_dist, dy / t_dist]
+                    act["move"] = self._rotate_move_safe(kite_dir, s_sign * math.radians(35),
+                                                         me["pos"][:2], obs["zone"])
+                    state += " kite"
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
-                 if aid != target["id"] and now - t_hit <= 2.5),
+                 if 0 <= aid < 16 and aid != me["id"] and aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and me.get("in_zone", True) and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
@@ -1532,7 +1545,10 @@ class Bot:
                 laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
                 hit = self.last_hits.get(target["id"])
                 being_shot = hit is not None and now - hit[0] <= 2.0
-                if reloading and laser_busy and being_shot and not self._target_blocked(me, target):
+                any_shot = any(0 <= aid < 16 and aid != me["id"] and now - ht <= 2.0 for aid, (ht, _) in self.last_hits.items())
+                t_blocked = self._target_blocked(me, target)
+                cant_shoot_back = t_blocked or (reloading and laser_busy)
+                if (being_shot or any_shot) and cant_shoot_back:
                     on_roof = self._current_roof(me["pos"])
                     if on_roof is not None:
                         # On a rooftop, pull back toward roof center instead of walking off the edge.
@@ -1576,7 +1592,8 @@ class Bot:
                         has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
                         if not has_laser and now < LATE_T:
                             state = "scan"
-                            act["aim"] = [(now * 1.2) % math.tau, 0.0]
+                            scan_rate = 2.4 if now < 90.0 else 1.2
+                            act["aim"] = [(now * scan_rate) % math.tau, 0.0]
             if (self.is_finals and me.get("in_zone", True) and not act.get("boost")
                     and drop is None and movement not in ("cube", "roof-climb", "roof-walk")):
                 walk = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
@@ -1616,6 +1633,18 @@ class Bot:
                         if l_boost:
                             act["boost"] = True
                         state += " ldodge"
+
+        # Steady aim: stop moving in the final ~0.15 s of laser charge when not dodging and inside zone.
+        if (charging and me.get("in_zone", True) and movement != "roof-climb"
+                and "dodge" not in state and "ldodge" not in state and "zone-run" not in state):
+            for w in weapons[:2]:
+                if w and w["kind"] == "laser":
+                    full_c = 0.93 * _stat(w.get("stats") or {}, "charge", self.laser.get("charge", 0.75))
+                    if (w.get("charge") or 0) >= full_c - 0.15:
+                        act["move"] = [0.0, 0.0]
+                        act["boost"] = False
+                        state += " steady"
+                        break
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
