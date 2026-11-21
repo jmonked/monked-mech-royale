@@ -1,5 +1,4 @@
-"""v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
-more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
+"""v38: v34 (4.67) + blind gun fire at near sounds (<60 m, keeps full laser charge), short-effect guard, and rear-hit stickiness break."""
 import json
 import math
 import traceback
@@ -266,6 +265,9 @@ class Bot:
         self.last_damage_bearing = None
         self.last_mech_bearing = None
         self.last_sound = None
+        self.last_near_sound = None
+        self.short_until = -math.inf
+        self.rear_attacker = None
         self.last_beam_threat = None
         self.pickups = {}
         self.cubes = {}
@@ -598,6 +600,9 @@ class Bot:
     def _remember_damage(self, events, now):
         for event in events:
             etype = event.get("type")
+            if etype == "effect" and event.get("effect") == "short":
+                self.short_until = max(self.short_until, now + 2.0)
+                continue
             if etype == "hit":
                 tid = event.get("target")
                 if tid is not None and 0 <= tid < 16:
@@ -608,6 +613,8 @@ class Bot:
                 continue
             bearing = event.get("bearing")
             self.last_hits[attacker] = (now, bearing)
+            if event.get("rear") and 0 <= attacker < 16:
+                self.rear_attacker = (now + 1.5, attacker)
             if bearing is not None:
                 self.last_damage_bearing = bearing
                 if 0 <= attacker < 16:
@@ -690,7 +697,13 @@ class Bot:
             if best_rank is None or rank < best_rank:
                 best, best_rank = mech, rank
 
-        if current is not None and best is not None:
+        rear_id = self.rear_attacker[1] if (self.rear_attacker and now <= self.rear_attacker[0]) else None
+        if rear_id is not None and best is not None:
+            rear_m = next((m for m in mechs if m.get("id") == rear_id and m.get("kind") == "mech"
+                           and m.get("pos") and m.get("id") not in self.killed), None)
+            if rear_m is not None:
+                best = rear_m
+        elif current is not None and best is not None:
             cur_eff = self._eff_hp(current, has_laser)
             best_eff = self._eff_hp(best, has_laser)
             if cur_eff is None or best_eff is None or best_eff >= 0.6 * cur_eff:
@@ -1091,8 +1104,9 @@ class Bot:
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 cur_charge = weapon.get("charge") or 0
-                if distance <= reach and ((cur_charge == 0 and weapon.get("cooldown", 0) <= 0 and not blocked)
-                                          or cur_charge > 0):
+                shorted = self._now < self.short_until
+                if not shorted and distance <= reach and ((cur_charge == 0 and weapon.get("cooldown", 0) <= 0 and not blocked)
+                                                          or cur_charge > 0):
                     laser_tgt = target
                     if blocked and cur_charge > 0 and mechs:
                         alt = self._alt_laser_target(me, mechs, target.get("id"), reach)
@@ -1327,12 +1341,18 @@ class Bot:
 
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
-            if (sound.get("kind") not in ("gun", "laser", "laser_charge", "lightning", "mortar")
-                    or sound.get("dist") not in ("near", "mid") or sound.get("bearing") is None):
+            kind = sound.get("kind")
+            dist = sound.get("dist")
+            bearing = sound.get("bearing")
+            if (kind not in ("gun", "laser", "laser_charge", "lightning", "mortar")
+                    or dist not in ("near", "mid") or bearing is None):
                 continue
             heard = now - sound.get("age", 0)
             if self.last_sound is None or heard >= self.last_sound[0]:
-                self.last_sound = (heard, sound["bearing"])
+                self.last_sound = (heard, bearing)
+            if dist == "near":
+                if self.last_near_sound is None or heard >= self.last_near_sound[0]:
+                    self.last_near_sound = (heard, bearing)
 
     def _face_bearing(self, mechs, pos, now):
         if self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5:
@@ -1527,6 +1547,20 @@ class Bot:
                     if bearing is not None:
                         state = "face"
                         act["aim"] = [bearing, 0.0]
+                        if self.last_near_sound is not None and now - self.last_near_sound[0] <= 0.6:
+                            sb = self.last_near_sound[1]
+                            act["aim"] = [sb, 0.0]
+                            actual = me.get("aim") or [None]
+                            muzzle_pos = (me["pos"][0], me["pos"][1], self._muzzle_z(me))
+                            probe_end = (me["pos"][0] + 35.0 * math.cos(sb), me["pos"][1] + 35.0 * math.sin(sb), muzzle_pos[2])
+                            if (actual[0] is not None and abs(math.remainder(sb - actual[0], math.tau)) <= math.radians(6.0)
+                                    and not self._building_blocked(muzzle_pos, probe_end)):
+                                for wi, w in enumerate(weapons[:2]):
+                                    if (w and w["kind"] == "gun" and (w.get("reload") or 0) <= 0
+                                            and (w.get("ammo") is None or w["ammo"] > 4)):
+                                        act["fire"][wi] = True
+                                        state = "sound-fire"
+                                        break
                     elif self._shoot_crate(obs, weapons, act):
                         state = "crate"
                     else:
