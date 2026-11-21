@@ -9,6 +9,7 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
     "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
@@ -95,7 +96,8 @@ class Bot:
         self.mech_radius = _stat(config.get("mech") or {}, "radius", 2.5)
         self.size_per_cube = _stat(cubes, "size_per_cube", 0.05)
         self.laser_released = False
-        self.laser_mark = None  # (time, target position) of the last mech the laser was aimed at
+        self.laser_target = None      # id of the mech the laser was last charged at
+        self.laser_full_since = None  # when the current charge became full
         self.walk_speed = _stat(config.get("mech") or {}, "walk_speed", 11.7)
         self.drop_id = None
         self.drop_retry_at = {}
@@ -210,8 +212,8 @@ class Bot:
         laser_damage = 0.0
         if laser:
             laser_damage = _stat(laser.get("stats") or {}, "damage", _stat(self.laser, "damage", 315))
-            # Cubes scale damage; keep a 10% margin for the target's armor.
-            laser_damage *= 0.9 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
+            # Cubes scale damage; assume the target may have up to 3 armor upgrades (-24%).
+            laser_damage *= 0.76 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
         # Under fire: a mech that hit us in the last 3 s from close range. While one is around,
         # don't turn away to chase a distant wounded mech unless one full laser shot kills it.
         under_fire = any(
@@ -396,6 +398,36 @@ class Bot:
         radius = self.mech_radius * (1 + self.size_per_cube * (target.get("cubes") or 0))
         return min(high, max(low, math.degrees(math.atan2(0.8 * radius, max(distance, 1.0)))))
 
+    def _laser_aim(self, me, target):
+        """Aim where the target will be when the beam goes out (about one decision from now)."""
+        x, y, z = me["pos"]
+        muzzle_z = z + _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
+        vx, vy, _ = target.get("vel") or (0.0, 0.0, 0.0)
+        tx, ty = target["pos"][0] + vx * LASER_LEAD_S, target["pos"][1] + vy * LASER_LEAD_S
+        return [math.atan2(ty - y, tx - x),
+                math.atan2(target["pos"][2] + 4.5 - muzzle_z, math.hypot(tx - x, ty - y))]
+
+    def _laser_ready(self, me, weapon, target):
+        """Full charge and the torso (as measured now) is on the target's body."""
+        stats = weapon.get("stats") or {}
+        charge = weapon.get("charge") or 0
+        full = 0.93 * _stat(stats, "charge", self.laser.get("charge", 0.75))
+        if charge < full:
+            self.laser_full_since = None
+            return False
+        if self.laser_full_since is None:
+            self.laser_full_since = self._now
+        actual = me.get("aim") or [None]
+        if actual[0] is None:
+            return False
+        x, y, _ = me["pos"]
+        distance = math.dist(me["pos"], target["pos"])
+        gate = self._hit_gate(target, distance, 0.35, 4.0)
+        if self._now - self.laser_full_since >= 0.8:
+            gate *= 2  # been waiting a while: take a slightly looser shot before the game auto-fires
+        yaw = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
+        return abs(math.remainder(yaw - actual[0], math.tau)) <= math.radians(gate)
+
     def _fight(self, me, weapons, target, act):
         x, y, z = me["pos"]
         muzzle_height = _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
@@ -431,13 +463,14 @@ class Bot:
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 if distance <= reach and (weapon.get("cooldown", 0) <= 0 or (weapon.get("charge") or 0) > 0):
-                    self.laser_mark = (self._now, target["pos"])
+                    self.laser_target = target["id"]
                     full_charge = _stat(stats, "charge", self.laser.get("charge", 0.75))
-                    charged = (weapon.get("charge") or 0) >= 0.93 * full_charge
                     # Turn onto the laser line one decision early (turning takes ~0.1 s).
                     near_full = (weapon.get("charge") or 0) >= 0.93 * full_charge - 0.1
-                    use_direct = use_direct or near_full or not gun_useful
-                    charging = not (charged and aligned(direct[0], self._hit_gate(target, distance, 0.35, 2.5)))
+                    if near_full or not gun_useful:
+                        use_direct = True
+                        direct = self._laser_aim(me, target)
+                    charging = not self._laser_ready(me, weapon, target)
                     act["fire"][i] = charging
                     self.laser_released = not charging
             elif kind == "lightning":
@@ -470,45 +503,31 @@ class Bot:
         return None
 
     def _laser_guard(self, obs, act):
-        """A charge in progress is only released on purpose: aimed at a mech, or nobody left to shoot."""
+        """Don't throw away a charge just because this tick's logic stopped holding the trigger:
+        keep it for the mech we were charging at (or one shooting us) if it is still tracked,
+        in reach and within a small turn. Otherwise let it go, as v8 did (full speed again)."""
         me = obs["self"]
         for i, weapon in enumerate((me.get("weapons") or [])[:2]):
             if not weapon or weapon.get("kind") != "laser" or not (weapon.get("charge") or 0) > 0:
                 continue
             fire = act.setdefault("fire", [False, False])
-            if fire[i] or self.laser_released:
+            if fire[i] or self.laser_released or self.healing or not me.get("in_zone", True):
                 return
-            stats = weapon.get("stats") or {}
-            reach = _stat(stats, "range", self.laser.get("range", 280))
-            x, y, z = me["pos"]
-            listed = [m for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos")
-                      and m.get("id") not in self.killed]
-            in_reach = [m for m in listed if math.dist(m["pos"], me["pos"]) <= reach]
-            pick = (next((m for m in in_reach if m["id"] == self.target_id), None)
-                    or min(in_reach, key=lambda m: math.dist(m["pos"], me["pos"]), default=None))
-            if pick is None and listed:
-                # Someone is still tracked but out of reach: hold and keep facing them.
-                pick = next((m for m in listed if m["id"] == self.target_id), None) or min(
-                    listed, key=lambda m: math.dist(m["pos"], me["pos"]))
-            if pick is not None:
-                spot = pick["pos"]
-            elif self.laser_mark is not None and obs["t"] - self.laser_mark[0] <= 1.0:
-                spot = self.laser_mark[1]
-            else:
-                return  # nobody to shoot: let the charge go rather than walk at half speed
-            muzzle_z = z + _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
-            yaw = math.atan2(spot[1] - y, spot[0] - x)
-            act["aim"] = [yaw, math.atan2(spot[2] + 4.5 - muzzle_z, math.hypot(spot[0] - x, spot[1] - y))]
-            fire[i] = True
-            if pick is not None and pick in in_reach:
-                self.laser_mark = (obs["t"], spot)
-                distance = math.dist(spot, me["pos"])
-                full_charge = _stat(stats, "charge", self.laser.get("charge", 0.75))
-                actual = me.get("aim") or [None]
-                if (weapon["charge"] >= 0.93 * full_charge and actual[0] is not None
-                        and abs(math.remainder(yaw - actual[0], math.tau))
-                        <= math.radians(self._hit_gate(pick, distance, 0.35, 2.5))):
-                    fire[i] = False
+            reach = _stat(weapon.get("stats") or {}, "range", self.laser.get("range", 280))
+            now = obs["t"]
+            in_reach = [m for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos")
+                        and m.get("id") not in self.killed and math.dist(m["pos"], me["pos"]) <= reach]
+            pick = next((m for m in in_reach if m["id"] == self.laser_target), None) or min(
+                (m for m in in_reach if now - self.last_hits.get(m["id"], (-math.inf,))[0] <= THREAT_RECENT_S),
+                key=lambda m: math.dist(m["pos"], me["pos"]), default=None)
+            if pick is None:
+                return
+            aim = self._laser_aim(me, pick)
+            actual = me.get("aim") or [None]
+            if actual[0] is not None and abs(math.remainder(aim[0] - actual[0], math.tau)) > math.radians(30):
+                return  # a big turn at half speed isn't worth it
+            act["aim"] = aim
+            fire[i] = not self._laser_ready(me, weapon, pick)
             return
 
     def act(self, obs: mf.Observation) -> mf.Action:

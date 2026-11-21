@@ -114,7 +114,7 @@ def a5_nearly_dead_close_mech_finished():
 @test
 def a5b_one_shot_distant_kill_still_allowed():
     b = bot()
-    o = make_obs(mechs=[mech(5, 30, 0), mech(7, 0, 270, hp=250)], events=[hit(5)])
+    o = make_obs(mechs=[mech(5, 30, 0), mech(7, 0, 270, hp=200)], events=[hit(5)])
     b.act(o)
     assert b.target_id == 7, b.target_id
 
@@ -197,17 +197,6 @@ def b3_far_target_needs_tight_aim():
 
 
 @test
-def b4_target_lost_mid_charge_holds_then_lets_go():
-    b = bot()
-    b.act(make_obs(t=20.0, mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
-    a = b.act(make_obs(t=20.1, mechs=[], weapons=[gun(), laser(charge=0.4)]))
-    assert a["fire"][LASER] is True, "must not dump the charge the moment the target vanishes"
-    assert abs(a["aim"][0] - direct_yaw(100, 0)) < 1e-6, "keep aiming where it was"
-    a = b.act(make_obs(t=21.3, mechs=[], weapons=[gun(), laser(charge=0.75)]))
-    assert a["fire"][LASER] is False, "nobody left: let it go instead of crawling at half speed"
-
-
-@test
 def b5_target_changes_mid_charge():
     b = bot()
     b.act(make_obs(t=20.0, mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
@@ -217,19 +206,6 @@ def b5_target_changes_mid_charge():
                        aim=(0.0, 0.0)))
     assert a["fire"][LASER] is True, a["fire"]
     assert abs(math.remainder(a["aim"][0] - math.pi, math.tau)) < 1e-6
-
-
-@test
-def b6_heal_mode_keeps_charge_for_an_aimed_shot():
-    b = bot()
-    w_mid = [gun(), laser(charge=0.4)]
-    b.act(make_obs(t=20.0, hp=1400, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
-    a = b.act(make_obs(t=20.1, hp=600, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=w_mid))
-    assert b.healing, "expected heal mode"
-    assert a["fire"][LASER] is True, "v8 would dump the charge here"
-    a = b.act(make_obs(t=20.6, hp=600, mechs=[mech(5, 120, 0)], weapons=[gun(), laser(charge=0.75)],
-                       aim=(0.0, 0.0)))
-    assert a["fire"][LASER] is False, "aimed full charge: fire it"
 
 
 @test
@@ -297,26 +273,96 @@ def b17_torso_still_turning():
 
 
 @test
-def b18_flickering_target_releases_once():
+def b4_target_steps_out_of_candidates_keeps_charge_then_gone_releases():
+    b = bot()
+    b.act(make_obs(t=20.0, mechs=[mech(5, 40, 0)], weapons=[gun(), laser(charge=0.3)], aim=(0.0, 0.0)))
+    # Steps to 50 m (no longer a target: not shooting us, not wounded) but still tracked.
+    a = b.act(make_obs(t=20.1, mechs=[mech(5, 50, 0)], weapons=[gun(), laser(charge=0.4)], aim=(0.0, 0.0)))
+    assert b.target_id is None
+    assert a["fire"][LASER] is True, "keep the charge for the mech we were charging at"
+    a = b.act(make_obs(t=20.2, mechs=[], weapons=[gun(), laser(charge=0.5)], aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is False, "nobody tracked: let it go and walk at full speed (v8 behaviour)"
+
+
+@test
+def b6_heal_mode_lets_charge_go():
+    b = bot()
+    b.act(make_obs(t=20.0, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
+    a = b.act(make_obs(t=25.5, hp=600, mechs=[mech(5, 120, 0)], weapons=[gun(), laser(charge=0.4)]))
+    assert b.healing
+    assert a["fire"][LASER] is False, "retreating: don't crawl at half speed"
+
+
+@test
+def b18_target_in_and_out_of_candidates_no_spam():
+    """Torso follows commands; target hops between 40 m (a target) and 50 m (not). Game rules modelled:
+    charge +0.1/decision up to 0.75, auto-fire 2 s after full, 1.65 s cooldown."""
     b = bot()
     releases = 0
-    charge, cooldown, prev_fire = 0.0, 0.0, False
+    charge, cooldown, full_for, aim = 0.0, 0.0, 0.0, (0.0, 0.0)
     t = 20.0
-    for k in range(40):
-        visible = k % 3 != 1  # target drops out of the list every third decision
-        mechs = [mech(5, 120, 0)] if visible else []
+    for k in range(60):
+        x = 40 if k % 4 < 2 else 50
         w = [gun(), laser(charge=charge, cooldown=cooldown)]
-        a = b.act(make_obs(t=t, mechs=mechs, events=[hit(5)] if k == 0 else [], weapons=w, aim=(0.0, 0.0)))
+        a = b.act(make_obs(t=t, mechs=[mech(5, x, 0)], weapons=w, aim=aim))
+        aim = tuple(a.get("aim") or aim)
         fire = a["fire"][LASER]
-        if charge > 0 and not fire:
+        if charge > 0 and (not fire or full_for >= 2.0):
             releases += 1
-            charge, cooldown = 0.0, 1.65
+            charge, cooldown, full_for = 0.0, 1.65, 0.0
         elif fire and cooldown <= 0:
             charge = min(0.75, charge + 0.1)
+            if charge >= 0.75:
+                full_for += 0.1
         cooldown = max(0.0, cooldown - 0.1)
         t += 0.1
-    # 4 s of fighting: one shot every ~0.75 s charge + 1.65 s cooldown at most.
-    assert 1 <= releases <= 2, releases
+    # 6 s: each cycle is >= 0.8 s charge + 1.65 s cooldown, so at most 3 shots.
+    assert 2 <= releases <= 3, releases
+
+
+@test
+def d1_no_spin_onto_a_bystander():
+    """DeepSeek checkpoint 2, item 1: last target died, a bystander sits at 60 m behind us."""
+    b = bot()
+    b.act(make_obs(t=19.8, mechs=[mech(4, -30, 5)], events=[hit(4, 2.95), hit(11, 2.95)],
+                   weapons=[gun(), laser(charge=0.45)], aim=(2.95, 0.0)))
+    a = b.act(make_obs(t=20.0, mechs=[mech(9, 60, 0)], events=[{"type": "kill", "target": 4}],
+                       weapons=[gun(), laser(charge=0.55)], aim=(2.95, 0.0)))
+    assert a["fire"][LASER] is False, "let it go; don't spin 180 deg at half speed onto a bystander"
+    assert abs(math.remainder(a["aim"][0] - 2.95, math.tau)) < deg(1), a["aim"]
+
+
+@test
+def d2_outside_zone_lets_charge_go():
+    b = bot()
+    b.act(make_obs(t=20.0, mechs=[mech(5, 40, 0)], weapons=[gun(), laser(charge=0.3)]))
+    a = b.act(make_obs(t=20.1, mechs=[mech(5, 50, 0)], weapons=[gun(), laser(charge=0.4)], in_zone=False))
+    assert a["fire"][LASER] is False
+
+
+@test
+def d3_close_crossing_target_released_quickly():
+    """DeepSeek checkpoint 2, item 5: 25 m, crossing at 11.7 m/s, torso one decision behind."""
+    b = bot()
+    px, py, vy = 25.0, -5.0, 11.7
+    charge, aim, t = 0.0, (0.0, 0.0), 20.0
+    full_at = None
+    for k in range(30):
+        m = mech(5, px, py, vel=(0.0, vy, 0.0))
+        a = b.act(make_obs(t=t, mechs=[m], events=[hit(5)] if k == 0 else [],
+                           weapons=[gun(), laser(charge=charge)], aim=aim))
+        if charge >= 0.93 * 0.75 and full_at is None:
+            full_at = k
+        if charge > 0 and not a["fire"][LASER]:
+            break
+        if a["fire"][LASER]:
+            charge = min(0.75, charge + 0.1)
+        aim = tuple(a["aim"])
+        py += vy * 0.1
+        t += 0.1
+    else:
+        raise AssertionError("never released")
+    assert k - full_at <= 2, (k, full_at)
 
 
 def run():
