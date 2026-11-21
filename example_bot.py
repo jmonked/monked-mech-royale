@@ -1573,10 +1573,8 @@ class Bot:
                     elif self._shoot_crate(obs, weapons, act):
                         state = "crate"
                     else:
-                        has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
-                        if not has_laser and now < LATE_T:
-                            state = "scan"
-                            act["aim"] = [(now * 1.2) % math.tau, 0.0]
+                        state = "scan"
+                        act["aim"] = [(now * 3.2) % math.tau, 0.0]
             if (self.is_finals and me.get("in_zone", True) and not act.get("boost")
                     and drop is None and movement not in ("cube", "roof-climb", "roof-walk")):
                 walk = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
