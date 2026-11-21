@@ -424,6 +424,48 @@ def d4_long_hold_never_releases_outside_body():
     assert a["fire"][LASER] is False, "1.3 deg (2.3 m) is on the body: take it"
 
 
+# ----------------------------------------------------------------- v14: leave big mechs alone
+def big(mid, x, y, hp=2000, cubes=8):
+    m = mech(mid, x, y, hp=hp)
+    m["max_hp"], m["cubes"] = 2000, cubes
+    return m
+
+
+@test
+def g1_big_wounded_mech_not_chased():
+    b = bot()
+    b.act(make_obs(mechs=[big(5, 0, 200, hp=900)]))
+    assert b.target_id is None, b.target_id
+
+
+@test
+def g2_big_mech_nearly_dead_is_fair_game():
+    b = bot()
+    b.act(make_obs(mechs=[big(5, 0, 200, hp=500)]))
+    assert b.target_id == 5, b.target_id
+
+
+@test
+def g3_big_mech_shooting_us_up_close_is_fought():
+    b = bot()
+    a = b.act(make_obs(mechs=[big(5, 30, 0, hp=2000)], events=[hit(5)], aim=(0.0, 0.0)))
+    assert b.target_id == 5 and a["fire"][0] is True
+
+
+@test
+def g4_big_mech_sniping_from_far_not_chased():
+    b = bot()
+    b.act(make_obs(mechs=[big(5, 150, 0, hp=2000)], events=[hit(5)]))
+    assert b.target_id is None, b.target_id
+
+
+@test
+def g5_same_size_mech_unaffected():
+    b = bot()
+    b.act(make_obs(mechs=[big(5, 0, 200, hp=900, cubes=3)]))
+    assert b.target_id == 5
+
+
 def run():
     failed = 0
     for fn in TESTS:

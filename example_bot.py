@@ -9,6 +9,7 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+BIG_CUBES = 4          # a mech with this many more cubes than us is "big": don't start that fight
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 
@@ -239,6 +240,11 @@ class Bot:
             if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
             if under_fire and not recent and distance > self.near_range and not hp <= laser_damage:
+                continue
+            # A much bigger mech (many cubes) is only fought if it is shooting us up close or nearly dead.
+            if ((mech.get("cubes") or 0) >= (cubes or 0) + BIG_CUBES
+                    and not (hp is not None and max_hp and hp <= 0.3 * max_hp)
+                    and not (recent and now - hit[0] <= THREAT_RECENT_S and distance <= THREAT_RANGE)):
                 continue
             if mech_id == self.target_id:
                 current = mech
