@@ -9,6 +9,7 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+LATE_HUNT_RANGE = 80.0  # after the opening, still fetch a laser/lightning this close when not fighting
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
@@ -345,22 +346,29 @@ class Bot:
         outside = not me["in_zone"]
         boost = outside
         hunt_id = None
-        if slot_empty:
+        weapons = me.get("weapons") or []
+        # Holding lightning: a laser is worth swapping in (sim: laser matches ~2.2 vs lightning ~1.5).
+        swap_slot = next((i for i, w in enumerate(weapons[:2]) if w and w.get("kind") == "lightning"), None)
+        if slot_empty or swap_slot is not None:
             best_take = best_hunt = (2, math.inf)
             for pickup_id, pickup in self.pickups.items():
                 kind = pickup["kind"]
-                if kind not in ("laser", "lightning"):
+                if kind not in ("laser", "lightning") or (not slot_empty and kind != "laser"):
                     continue
                 location = pickup["pos"][:2]
                 distance = math.dist(xy, location)
                 rank = (0 if kind == "laser" else 1, distance)
                 if pickup_id in visible and distance <= self.reach and rank < best_take:
                     act["take"] = pickup_id
+                    if not slot_empty:
+                        act["drop"] = swap_slot
                     best_take = rank
                 # Skip rooftop pickups (take needs <= 4 m vertical) and ones we failed to reach.
                 if pickup["pos"][2] - me["pos"][2] > 5 or pickup_id in self.unreachable:
                     continue
-                if (obs["t"] < 90 and distance <= 250 and rank < best_hunt
+                # Early: anything within 250 m. Later: within 80 m while not fighting (e.g. a kill's drop).
+                if (((obs["t"] < 90 and distance <= 250)
+                     or (distance <= LATE_HUNT_RANGE and self.target_id is None)) and rank < best_hunt
                         and math.dist(location, zone["next_center"]) <= zone["next_radius"]):
                     best_hunt = rank
                     hunt_id = pickup_id

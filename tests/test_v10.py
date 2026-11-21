@@ -446,6 +446,56 @@ def h3_early_wounded_still_chased():
     assert b.target_id == 7
 
 
+# ----------------------------------------------------------------- v21: get a laser more often
+def lightning_w():
+    return {"kind": "lightning", "cooldown": 0.0, "stats": {"damage": 60, "range": 45, "cone_deg": 30}}
+
+
+def pickup(pid, kind, x, y):
+    return {"id": pid, "kind": kind, "pos": [x, y, 0.0]}
+
+
+@test
+def k1_late_laser_nearby_is_fetched_when_not_fighting():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), None]); o["pickups"] = [pickup(8001, "laser", 60, 0)]; o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert abs(a["move"][0] - 1) < 1e-6, a["move"]
+
+
+@test
+def k2_late_laser_ignored_while_fighting():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), None], mechs=[mech(5, 0, 30)], events=[hit(5)])
+    o["pickups"] = [pickup(8001, "laser", 60, 0)]; o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert b.target_id == 5 and abs(a["move"][0] - 1) > 0.1, a["move"]
+
+
+@test
+def k3_swap_lightning_for_laser():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), lightning_w()]); o["pickups"] = [pickup(8001, "laser", 2, 0)]
+    a = b.act(o)
+    assert a.get("take") == 8001 and a.get("drop") == 1, a
+
+
+@test
+def k4_holding_laser_ignores_pickups():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), laser()]); o["pickups"] = [pickup(8001, "lightning", 2, 0)]
+    a = b.act(o)
+    assert "take" not in a
+
+
+@test
+def k5_late_far_laser_not_chased():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), None]); o["pickups"] = [pickup(8001, "laser", 150, 0)]; o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert abs(a["move"][0] - 1) > 0.1 or abs(a["move"][1]) > 0.1, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:
