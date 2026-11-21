@@ -500,6 +500,47 @@ def l6_idle_cube_reach_60m():
     assert a["move"][0] > 0.99, a["move"]
 
 
+# ----------------------------------------------------------------- v26: collect our kills' cubes
+def kill_setup(b, t=40.0, at=(150.0, 0.0)):
+    b.act(make_obs(t=t - 0.1, mechs=[mech(9, at[0], at[1], hp=100)]))
+
+
+def loot_obs(t, cube_at=(150.0, 2.0), events=(), mechs=()):
+    o = make_obs(t=t, events=list(events), mechs=list(mechs))
+    o["zone"]["next_center"] = [0, -100]
+    o["cubes"] = [{"id": 5001, "pos": [cube_at[0], cube_at[1], 0.0]}]
+    return o
+
+
+@test
+def m1_walk_to_our_kill_cubes_150m():
+    b = bot(); kill_setup(b)
+    a = b.act(loot_obs(40.0, events=[{"type": "kill", "target": 9}]))
+    assert a["move"][0] > 0.99, a["move"]
+
+
+@test
+def m2_not_while_being_shot():
+    b = bot(); kill_setup(b)
+    a = b.act(loot_obs(40.0, events=[{"type": "kill", "target": 9}, hit(5)], mechs=[mech(5, 0, -60)]))
+    assert a["move"][0] < 0.9, a["move"]
+
+
+@test
+def m3_old_kill_forgotten():
+    b = bot(); kill_setup(b)
+    b.act(loot_obs(40.0, events=[{"type": "kill", "target": 9}]))
+    a = b.act(loot_obs(70.0))
+    assert a["move"][0] < 0.9, a["move"]
+
+
+@test
+def m4_far_random_cube_still_ignored():
+    b = bot()
+    a = b.act(loot_obs(40.0))
+    assert a["move"][0] < 0.9, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:

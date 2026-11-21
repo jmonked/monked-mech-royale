@@ -11,6 +11,8 @@ THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long a
 THREAT_RANGE = 60.0    # ...and only while it is this close
 CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting)
 CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
+KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
+KILL_LOOT_S = 25.0       # ...within this long after the kill
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
@@ -121,6 +123,8 @@ class Bot:
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
         self.healing = False
+        self.kill_spots = []   # (time, xy) of our recent kills: their cubes are worth a walk
+        self.mech_seen = {}    # last seen xy per mech id
         self.cover_spot = None
         self.cover_threat = None
         self.cover_time = -math.inf
@@ -308,6 +312,12 @@ class Bot:
         self.cubes.update(visible)
         picked_up = any(e.get("type") == "pickup" for e in obs.get("events") or [])
         options = []
+        now = obs["t"]
+        # Our kills drop the victim's cubes + 2. Laser kills happen at 100-200 m, far outside normal cube
+        # reach, so walk back for them unless someone is shooting at us right now.
+        self.kill_spots = [(t, xy) for t, xy in self.kill_spots if now - t <= KILL_LOOT_S]
+        shot_at = any(0 <= mid < 16 and now - hit[0] <= THREAT_RECENT_S for mid, hit in self.last_hits.items())
+        loot_reach = KILL_LOOT_RANGE if now < LATE_T else 80.0
         for cube_id, location in list(self.cubes.items()):
             distance = math.dist(pos[:2], location[:2])
             height = location[2] - pos[2]
@@ -316,12 +326,14 @@ class Bot:
                 del self.cubes[cube_id]
                 continue
             # No cube cap: past 10 cubes there are no more stat gains, but 15/21/28/... still give upgrades.
+            reach = max_distance
+            if not shot_at and any(math.dist(location[:2], xy) <= 12 for _, xy in self.kill_spots):
+                reach = max(reach, loot_reach)
             if (not pursuing_drop and height <= 3.5
-                    and distance <= max_distance and cube_id not in self.unreachable
+                    and distance <= reach and cube_id not in self.unreachable
                     and math.dist(location[:2], zone["next_center"]) <= zone["next_radius"]):
                 options.append((distance, cube_id))
 
-        now = obs["t"]
         previous_id, best, since = self.cube_progress
         for distance, cube_id in sorted(options):
             if cube_id != previous_id or distance <= best - 1:
@@ -601,7 +613,15 @@ class Bot:
         now = obs["t"]
         events = obs.get("events") or []
         self._remember_damage(events, now)
-        self.killed.update(e["target"] for e in events if e.get("type") == "kill" and "target" in e)
+        for e in events:
+            if e.get("type") == "kill" and "target" in e:
+                self.killed.add(e["target"])
+                spot = self.mech_seen.get(e["target"])
+                if spot is not None:
+                    self.kill_spots.append((now, spot))
+        for m in obs.get("mechs") or []:
+            if m.get("kind") == "mech" and m.get("pos") and m.get("id") is not None:
+                self.mech_seen[m["id"]] = (m["pos"][0], m["pos"][1])
         self._remember_sounds(obs.get("sounds") or [], now)
         me = obs["self"]
         weapons = me.get("weapons") or []
