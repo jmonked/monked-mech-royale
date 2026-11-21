@@ -496,6 +496,32 @@ def k5_late_far_laser_not_chased():
     assert abs(a["move"][0] - 1) > 0.1 or abs(a["move"][1]) > 0.1, a["move"]
 
 
+@test
+def k6_no_swap_mid_fight():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), lightning_w()], mechs=[mech(5, 25, 0)], events=[hit(5)])
+    o["pickups"] = [pickup(8001, "laser", 2, 0)]
+    a = b.act(o)
+    assert "take" not in a, a
+
+
+@test
+def k7_no_take_out_of_vertical_reach():
+    b = bot()
+    o = make_obs(t=150.0, weapons=[gun(), None]); o["pickups"] = [{"id": 8001, "kind": "laser", "pos": [2.0, 0.0, 4.5]}]
+    a = b.act(o)
+    assert "take" not in a, a
+
+
+@test
+def k8_late_hunt_keeps_cube_range():
+    b = bot()
+    o = make_obs(t=240.0, weapons=[gun(), None]); o["zone"]["next_center"] = [0, -100]
+    o["pickups"] = [pickup(8001, "laser", 60, 0)]; o["cubes"] = [{"id": 5001, "pos": [0.0, -25.0, 0.0]}]
+    a = b.act(o)
+    assert a["move"][1] < -0.9, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:

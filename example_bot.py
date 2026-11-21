@@ -358,7 +358,9 @@ class Bot:
                 location = pickup["pos"][:2]
                 distance = math.dist(xy, location)
                 rank = (0 if kind == "laser" else 1, distance)
-                if pickup_id in visible and distance <= self.reach and rank < best_take:
+                # Swapping costs the laser's 1.65 s equip time, so never swap mid-fight.
+                if (pickup_id in visible and distance <= self.reach and abs(pickup["pos"][2] - me["pos"][2]) <= 4
+                        and rank < best_take and (slot_empty or self.target_id is None)):
                     act["take"] = pickup_id
                     if not slot_empty:
                         act["drop"] = swap_slot
@@ -378,7 +380,7 @@ class Bot:
         # Preserve the default facing even when collecting a drop or cube.
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
-        cube = self._cube_goal(obs, 15 if hunt_id is not None else 40, pursuing_drop=drop is not None)
+        cube = self._cube_goal(obs, 15 if hunt_id is not None and obs["t"] < 90 else 40, pursuing_drop=drop is not None)
         if drop is not None:
             self.hunt_progress.pop(hunt_id, None)
             dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
