@@ -796,6 +796,8 @@ class Bot:
                 self.pickups.pop(event.get("id"), None)
 
         has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
+        has_lightning = any(w and w["kind"] == "lightning" for w in weapons[:2])
+        gun_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "gun"), None)
         slot_empty = len(weapons) < 2 or weapons[1] is None
         lightning_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "lightning"), None)
         laser_charging = any(w and w["kind"] == "laser" and (w.get("charge") or 0) > 0 for w in weapons[:2])
@@ -812,14 +814,15 @@ class Bot:
         hunt_id = None
         hunt_pickup = None
 
-        want_weapon = (not has_laser) and (slot_empty or lightning_slot is not None)
-        if want_weapon:
+        want_laser = (not has_laser) and (slot_empty or lightning_slot is not None)
+        want_lightning_upgrade = has_laser and (not has_lightning) and (slot_empty or gun_slot is not None)
+        if want_laser or want_lightning_upgrade:
             best_take = best_hunt = (2, math.inf)
             for pickup_id, pickup in self.pickups.items():
                 kind = pickup["kind"]
-                if kind == "laser":
+                if kind == "laser" and want_laser:
                     pass
-                elif kind == "lightning" and slot_empty:
+                elif kind == "lightning" and ((want_laser and slot_empty) or want_lightning_upgrade):
                     pass
                 else:
                     continue
@@ -832,6 +835,8 @@ class Bot:
                     act["take"] = pickup_id
                     if not slot_empty and lightning_slot is not None and kind == "laser":
                         act["drop"] = lightning_slot
+                    elif not slot_empty and gun_slot is not None and kind == "lightning" and has_laser:
+                        act["drop"] = gun_slot
                     else:
                         act.pop("drop", None)
                     best_take = rank
@@ -844,6 +849,9 @@ class Bot:
                 if kind == "laser":
                     max_hunt_dist = 250.0 if now < 90.0 else 130.0
                     time_ok = now < LATE_T
+                elif has_laser:
+                    max_hunt_dist = 110.0
+                    time_ok = now < LATE_T and not enemy_close
                 else:
                     max_hunt_dist = 250.0
                     time_ok = now < 90.0
@@ -1113,10 +1121,10 @@ class Bot:
                     self.laser_released = not charging
             elif kind == "lightning":
                 reach = _stat(stats, "range", self.lightning.get("range", 45))
-                if not blocked and distance <= 0.9 * reach and me["energy"] >= 10:
+                if not blocked and distance <= reach - 1.0 and me["energy"] >= 15:
                     use_direct = True
                     cone = _stat(stats, "cone_deg", self.lightning.get("cone_deg", 30))
-                    act["fire"][i] = aligned(direct[0], 0.4 * cone)
+                    act["fire"][i] = aligned(direct[0], 0.45 * cone)
         act["aim"] = direct if use_direct else aim
         return charging
 
