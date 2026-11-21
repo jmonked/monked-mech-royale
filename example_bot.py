@@ -1,5 +1,4 @@
-"""v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
-more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
+"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
 import json
 import math
 import traceback
@@ -266,6 +265,8 @@ class Bot:
         self.last_damage_bearing = None
         self.last_mech_bearing = None
         self.last_sound = None
+        self.last_near_sound = None
+        self.short_until = -math.inf
         self.last_beam_threat = None
         self.pickups = {}
         self.cubes = {}
@@ -598,6 +599,9 @@ class Bot:
     def _remember_damage(self, events, now):
         for event in events:
             etype = event.get("type")
+            if etype == "effect" and event.get("effect") == "short":
+                self.short_until = max(self.short_until, now + 2.0)
+                continue
             if etype == "hit":
                 tid = event.get("target")
                 if tid is not None and 0 <= tid < 16:
@@ -1091,8 +1095,9 @@ class Bot:
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 cur_charge = weapon.get("charge") or 0
-                if distance <= reach and ((cur_charge == 0 and weapon.get("cooldown", 0) <= 0 and not blocked)
-                                          or cur_charge > 0):
+                shorted = self._now < self.short_until
+                if not shorted and distance <= reach and ((cur_charge == 0 and weapon.get("cooldown", 0) <= 0 and not blocked)
+                                                          or cur_charge > 0):
                     laser_tgt = target
                     if blocked and cur_charge > 0 and mechs:
                         alt = self._alt_laser_target(me, mechs, target.get("id"), reach)
@@ -1327,12 +1332,18 @@ class Bot:
 
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
-            if (sound.get("kind") not in ("gun", "laser", "laser_charge", "lightning", "mortar")
-                    or sound.get("dist") not in ("near", "mid") or sound.get("bearing") is None):
+            kind = sound.get("kind")
+            dist = sound.get("dist")
+            bearing = sound.get("bearing")
+            if (kind not in ("gun", "laser", "laser_charge", "lightning", "mortar")
+                    or dist not in ("near", "mid") or bearing is None):
                 continue
             heard = now - sound.get("age", 0)
             if self.last_sound is None or heard >= self.last_sound[0]:
-                self.last_sound = (heard, sound["bearing"])
+                self.last_sound = (heard, bearing)
+            if dist == "near":
+                if self.last_near_sound is None or heard >= self.last_near_sound[0]:
+                    self.last_near_sound = (heard, bearing)
 
     def _face_bearing(self, mechs, pos, now):
         if self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5:
@@ -1485,8 +1496,38 @@ class Bot:
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
+            # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
+            tp_hit = max(
+                ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
+                 if aid != target["id"] and now - t_hit <= 2.5),
+                default=None,
+            )
+            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+                tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
+                if tp_m is not None:
+                    tp_threat = tp_m["pos"][:2]
+                elif tp_hit[2] is not None:
+                    tp_threat = (me["pos"][0] + 80.0 * math.cos(tp_hit[2]), me["pos"][1] + 80.0 * math.sin(tp_hit[2]))
+                else:
+                    tp_threat = target["pos"][:2]
+                on_roof = self._current_roof(me["pos"])
+                if on_roof is not None:
+                    rc = on_roof[1]
+                    d = math.dist(me["pos"][:2], rc)
+                    if d > 2.0:
+                        act["move"] = [(rc[0] - me["pos"][0]) / d, (rc[1] - me["pos"][1]) / d]
+                        act["boost"] = False
+                        state += " tp-cover"
+                else:
+                    spot = self._find_cover(me["pos"][:2], tp_threat, obs["zone"])
+                    if spot is not None:
+                        d = math.dist(me["pos"][:2], spot)
+                        if 2.0 < d <= 45.0:
+                            act["move"] = [(spot[0] - me["pos"][0]) / d, (spot[1] - me["pos"][1]) / d]
+                            act["boost"] = me.get("energy", 0) >= 30 and d > 10 and not charging
+                            state += " tp-cover"
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
-            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
+            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb" and "tp-cover" not in state:
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
                 laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
                 hit = self.last_hits.get(target["id"])
@@ -1527,6 +1568,8 @@ class Bot:
                     if bearing is not None:
                         state = "face"
                         act["aim"] = [bearing, 0.0]
+                        if self.last_near_sound is not None and now - self.last_near_sound[0] <= 0.6:
+                            act["aim"] = [self.last_near_sound[1], 0.0]
                     elif self._shoot_crate(obs, weapons, act):
                         state = "crate"
                     else:
