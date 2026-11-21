@@ -1,4 +1,5 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v46: v39 (4.73) + A* building navigation and building-edge placement inside next_circle (combat/jump/boost untouched)."""
+import heapq
 import json
 import math
 import traceback
@@ -215,6 +216,83 @@ def _strafe_sign(now):
     return 1.0 if math.sin(now * 3.1) + 0.55 * math.sin(now * 5.3) >= 0.0 else -1.0
 
 
+
+
+NAV_CELL = 6.0
+NAV_NB8 = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+           (1, 1, 1.414), (1, -1, 1.414), (-1, 1, 1.414), (-1, -1, 1.414))
+
+
+def _build_nav_and_spots(hello, los_buildings):
+    """Build a 6 m walkable grid (for A* routing around buildings) and building-edge cover spots."""
+    with (Path(hello["map"]["dir"]) / "v2" / "world.json").open(encoding="utf-8") as source:
+        b = (json.load(source).get("bounds") or {})
+    x0, y0 = b.get("minX", -520.0), b.get("minY", -340.0)
+    x1, y1 = b.get("maxX", 560.0), b.get("maxY", 390.0)
+    nx, ny = int((x1 - x0) / NAV_CELL) + 1, int((y1 - y0) / NAV_CELL) + 1
+    blk = bytearray(nx * ny)
+    for _c, _r, ring, holes, base, top in los_buildings:
+        if top - base <= 1.2:
+            continue
+        rings = [ring] + holes
+        ys = [q[1] for q in ring]
+        j0 = max(0, int((min(ys) - y0) / NAV_CELL))
+        j1 = min(ny - 1, int((max(ys) - y0) / NAV_CELL))
+        for j in range(j0, j1 + 1):
+            yc = y0 + (j + 0.5) * NAV_CELL
+            xs = []
+            for r in rings:
+                ax, ay = r[-1]
+                for bx, by in r:
+                    if (ay > yc) != (by > yc):
+                        xs.append(ax + (yc - ay) * (bx - ax) / (by - ay))
+                    ax, ay = bx, by
+            xs.sort()
+            for a, bv in zip(xs[::2], xs[1::2]):
+                i0 = max(0, math.ceil((a - x0) / NAV_CELL - 0.5))
+                i1 = min(nx - 1, math.floor((bv - x0) / NAV_CELL - 0.5))
+                if i1 >= i0:
+                    blk[j * nx + i0:j * nx + i1 + 1] = b"\x01" * (i1 - i0 + 1)
+
+    # Precompute open building-edge spots (4.5 m outside tall buildings)
+    spots = []
+    seen = set()
+    for _c, _r, ring, _holes, base, top in los_buildings:
+        if top - base < 9.0:
+            continue
+        area2 = sum(ax * by - bx * ay for (ax, ay), (bx, by) in zip(ring[-1:] + ring[:-1], ring))
+        sgn = 1.0 if area2 > 0 else -1.0
+        n = len(ring)
+        for k in range(n):
+            ax, ay = ring[k - 1]
+            vx, vy = ring[k]
+            bx, by = ring[(k + 1) % n]
+            l1 = math.hypot(vx - ax, vy - ay)
+            l2 = math.hypot(bx - vx, by - vy)
+            if l1 < 1e-6 or l2 < 1e-6:
+                continue
+            e1x, e1y = (vx - ax) / l1, (vy - ay) / l1
+            e2x, e2y = (bx - vx) / l2, (by - vy) / l2
+            pts = []
+            if l2 >= 24.0:
+                pts.append(((vx + bx) * 0.5 + 4.5 * sgn * e2y, (vy + by) * 0.5 - 4.5 * sgn * e2x))
+            if max(l1, l2) >= 3.0 and (e1x * e2y - e1y * e2x) * sgn > 0.2:
+                nx_v, ny_v = sgn * (e1y + e2y), -sgn * (e1x + e2x)
+                nl = math.hypot(nx_v, ny_v)
+                if nl > 1e-6:
+                    pts.append((vx + 4.5 * nx_v / nl, vy + 4.5 * ny_v / nl))
+            for sx, sy in pts:
+                key = (round(sx / 6.0), round(sy / 6.0))
+                if key in seen:
+                    continue
+                ci = min(nx - 1, max(0, int((sx - x0) / NAV_CELL)))
+                cj = min(ny - 1, max(0, int((sy - y0) / NAV_CELL)))
+                if not blk[cj * nx + ci]:
+                    seen.add(key)
+                    spots.append((sx, sy))
+    return (blk, x0, y0, nx, ny), spots
+
+
 class Bot:
     name = "monked"
 
@@ -291,10 +369,18 @@ class Bot:
         self.finals_t = None          # point 8: timestamp when Finals FFA switch tripped
         self._now = 0.0
         self._los_cache = {}
+        self.nav_grid = None
+        self.edge_spots = []
+        self.nav_paths = {}
+        self.edge_place = None
+        self.edge_place_t = -math.inf
+        self._nav_plans = 0
         try:
             self.buildings, self.los_buildings, self.roofs = _load_prisms(hello)
+            self.nav_grid, self.edge_spots = _build_nav_and_spots(hello, self.los_buildings)
         except Exception:
             self.buildings, self.los_buildings, self.roofs = [], [], []
+            self.nav_grid, self.edge_spots = None, []
 
     def _muzzle_z(self, me):
         own_scale = self._scale(me)
@@ -783,13 +869,112 @@ class Bot:
         self.cube_progress = (None, math.inf, now)
         return None
 
+    def _edge_place(self, me, zone, mechs, now):
+        """Pick a building corner/wall inside next_circle (away from known mechs) instead of open next_center."""
+        if not self.edge_spots:
+            return zone["next_center"]
+        nc, nr = zone["next_center"], zone["next_radius"]
+        lim = nr - min(12.0, 0.3 * nr)
+        if now - self.edge_place_t < 3.0 and self.edge_place is not None:
+            if math.dist(self.edge_place, nc) <= max(lim + 4.0, 2.0):
+                return self.edge_place
+        xy = me["pos"][:2]
+        known = [m["pos"][:2] for m in mechs if m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed]
+        best = None
+        best_s = math.inf
+        for sx, sy in self.edge_spots:
+            dc = math.hypot(sx - nc[0], sy - nc[1])
+            if dc > lim:
+                continue
+            d = math.hypot(sx - xy[0], sy - xy[1])
+            if d > 300.0:
+                continue
+            s = d + 0.25 * dc
+            for mx, my in known:
+                dm = math.hypot(sx - mx, sy - my)
+                if dm < 120.0:
+                    s += (120.0 - dm) * 1.5
+            if self.edge_place is not None and math.hypot(sx - self.edge_place[0], sy - self.edge_place[1]) < 3.0:
+                s -= 15.0
+            if s < best_s:
+                best_s = s
+                best = (sx, sy)
+        self.edge_place = best
+        self.edge_place_t = now
+        return best if best is not None else nc
+
+    def _nav_path(self, sx, sy, gx, gy, limit=650):
+        blk, x0, y0, nx, ny = self.nav_grid
+        def cell(x, y):
+            return min(ny - 1, max(0, int((y - y0) / NAV_CELL))) * nx + min(nx - 1, max(0, int((x - x0) / NAV_CELL)))
+        s, g = cell(sx, sy), cell(gx, gy)
+        gi, gj = g % nx, g // nx
+        heap, prev, cost = [(0.0, 0.0, s)], {s: -1}, {s: 0.0}
+        best, best_h, n = s, math.inf, 0
+        while heap and n < limit:
+            _f, c, u = heapq.heappop(heap)
+            if c > cost[u]:
+                continue
+            n += 1
+            ui, uj = u % nx, u // nx
+            hx, hy = abs(ui - gi), abs(uj - gj)
+            h = max(hx, hy) + 0.414 * min(hx, hy)
+            if h < best_h:
+                best, best_h = u, h
+            if u == g:
+                break
+            for di, dj, w in NAV_NB8:
+                vi, vj = ui + di, uj + dj
+                if not (0 <= vi < nx and 0 <= vj < ny):
+                    continue
+                v = vj * nx + vi
+                if blk[v] or (di and dj and (blk[uj * nx + vi] or blk[vj * nx + ui])):
+                    continue
+                nc_v = c + w
+                if nc_v < cost.get(v, math.inf):
+                    cost[v], prev[v] = nc_v, u
+                    hx2, hy2 = abs(vi - gi), abs(vj - gj)
+                    heapq.heappush(heap, (nc_v + 1.8 * (max(hx2, hy2) + 0.414 * min(hx2, hy2)), nc_v, v))
+        out, u = [], best
+        while u != -1:
+            out.append((x0 + (u % nx + 0.5) * NAV_CELL, y0 + (u // nx + 0.5) * NAV_CELL))
+            u = prev[u]
+        out.reverse()
+        if best == g:
+            out[-1] = (gx, gy)
+        return out
+
+    def _nav_waypoint(self, me, gx, gy, now):
+        """Return next clear A* waypoint around buildings when walking on the ground."""
+        if self.nav_grid is None or self._current_roof(me["pos"]) is not None:
+            return gx, gy
+        x, y, z = me["pos"]
+        if math.hypot(gx - x, gy - y) < 6.0:
+            return gx, gy
+        if not self._building_blocked((x, y, z + 1.3), (gx, gy, z + 1.3)):
+            return gx, gy
+        key = (round(gx / 25.0), round(gy / 25.0))
+        self.nav_paths = {k: v for k, v in self.nav_paths.items() if now - v[0] <= 3.0}
+        p = self.nav_paths.get(key)
+        if p is None or now - p[0] > 1.5 or math.hypot(p[1][0] - gx, p[1][1] - gy) > 10.0:
+            if self._nav_plans <= 0:
+                return (gx, gy) if p is None else p[2][-1]
+            self._nav_plans -= 1
+            p = self.nav_paths[key] = (now, (gx, gy), self._nav_path(x, y, gx, gy))
+        pts = p[2]
+        k0 = min(range(len(pts)), key=lambda k: (pts[k][0] - x) ** 2 + (pts[k][1] - y) ** 2)
+        for k in range(min(len(pts) - 1, k0 + 8), k0, -1):
+            if not self._building_blocked((x, y, z + 1.3), (pts[k][0], pts[k][1], z + 1.3)):
+                return pts[k]
+        return pts[min(k0 + 1, len(pts) - 1)]
+
     def _movement(self, obs, weapons, act, drop=None):
         me = obs["self"]
         xy = me["pos"][:2]
         mz = me["pos"][2]
         zone = obs["zone"]
         now = obs["t"]
-        goal = zone["next_center"]
+        goal = self._edge_place(me, zone, obs.get("mechs") or [], now) if me.get("in_zone", True) else zone["next_center"]
         visible = {p["id"]: p for p in obs.get("pickups") or []}
         self.pickups.update(visible)
         for pickup_id, pickup in list(self.pickups.items()):
@@ -860,8 +1045,9 @@ class Bot:
                     goal = location
                     boost = outside or (me["energy"] >= 30 and distance > 25)
 
+        nav_goal = self._nav_waypoint(me, goal[0], goal[1], now)
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
-        move_yaw = yaw
+        move_yaw = math.atan2(nav_goal[1] - xy[1], nav_goal[0] - xy[0])
 
         holding_drop = drop is not None and math.dist(xy, drop["pos"][:2]) <= drop["radius"] - 2
         if holding_drop:
@@ -875,14 +1061,17 @@ class Bot:
         if cube is not None:
             location, distance = cube
             state = "cube"
-            move_yaw = math.atan2(location[1] - xy[1], location[0] - xy[0])
+            c_wp = self._nav_waypoint(me, location[0], location[1], now)
+            move_yaw = math.atan2(c_wp[1] - xy[1], c_wp[0] - xy[0])
             boost = me["energy"] >= 40 and distance > 15
             self.hunt_progress.pop(hunt_id, None)
         elif drop is not None:
             self.hunt_progress.pop(hunt_id, None)
-            dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
-            distance = math.hypot(dx, dy)
-            act.update(move=[0.0, 0.0] if holding_drop else [dx / distance, dy / distance],
+            d_wp = drop["pos"][:2] if holding_drop else self._nav_waypoint(me, drop["pos"][0], drop["pos"][1], now)
+            dx, dy = d_wp[0] - xy[0], d_wp[1] - xy[1]
+            wd = math.hypot(dx, dy)
+            distance = math.dist(xy, drop["pos"][:2])
+            act.update(move=[0.0, 0.0] if (holding_drop or wd <= 1e-6) else [dx / wd, dy / wd],
                        aim=[yaw, 0.0], boost=not holding_drop and me["energy"] >= 30 and distance > 30,
                        jump=not holding_drop and obs["tick"] % 40 == 0)
             return f"drop-hold {drop['progress']:.1f}/{drop['capture_s']:g}s" if holding_drop else "drop-walk"
@@ -943,7 +1132,8 @@ class Bot:
                         boost = me.get("energy", 0) >= 15
                     else:
                         state = "roof-walk"
-                        move_yaw = math.atan2(climb_xy[1] - xy[1], climb_xy[0] - xy[0])
+                        r_wp = self._nav_waypoint(me, climb_xy[0], climb_xy[1], now)
+                        move_yaw = math.atan2(r_wp[1] - xy[1], r_wp[0] - xy[0])
                         boost = False
 
         act.update(move=[math.cos(move_yaw), math.sin(move_yaw)], aim=[yaw, 0.0],
@@ -1387,6 +1577,7 @@ class Bot:
         self.laser_released = False
         self._now = obs.get("t", 0.0)
         self._los_cache.clear()
+        self._nav_plans = 1
         try:
             action = self._act(obs)
             try:
@@ -1499,10 +1690,10 @@ class Bot:
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
-                 if aid != target["id"] and now - t_hit <= 2.5),
+                 if 0 <= aid < 16 and aid != me["id"] and aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and me.get("in_zone", True) and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
