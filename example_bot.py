@@ -16,6 +16,9 @@ USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
 
+USE_WALL_STEER = True        # v35: steer around nearby walls before stalling
+USE_COVER_PEEK = True        # v35: step toward cover below 85% laser charge
+
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
 CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting/hunting)
@@ -42,6 +45,12 @@ FINALS_DETECT_T = 110.0  # nobody dies to zone before 110 s; >= 2 non-our deaths
 MORTAR_GRAVITY = 22.0
 DROP_HEALTHY_DIST = 150.0  # only chase drops within 150 m when >= 75% HP (250 m when hurt)
 DROP_CONTEST_ABORT_S = 3.0  # abandon a drop if a rival hangs around it for >= 3 s
+STEER_OFFSETS = (
+    math.radians(30), -math.radians(30),
+    math.radians(60), -math.radians(60),
+    math.radians(90), -math.radians(90),
+    math.radians(120), -math.radians(120),
+)
 
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
     "plating", "laser_damage", "laser_charge", "armor", "gun_damage",
@@ -333,6 +342,58 @@ class Bot:
                 if _point_in_prism_2d(px, py, ring, holes):
                     return True
         return False
+
+    def _steer_around_walls(self, move, me, zone):
+        """v35: proactive local wall avoidance. If desired move hits a solid prism within 5.5 m,
+        pick the smallest clear angular deflection (+/-30..120 deg) before we ever stall."""
+        if not self.los_buildings:
+            return move
+        mx, my = move
+        mag = math.hypot(mx, my)
+        if mag <= 0.25:
+            return move
+        ux, uy = mx / mag, my / mag
+        px, py, pz = me["pos"]
+        probe = 5.5
+        if not self._point_blocked_2d(px + probe * ux, py + probe * uy, pz):
+            return move
+        # Prefer deflections that stay inside next_center/next_radius if we're already inside.
+        in_next = math.dist((px, py), zone["next_center"]) <= zone["next_radius"]
+        for off in STEER_OFFSETS:
+            c, s = math.cos(off), math.sin(off)
+            rx, ry = ux * c - uy * s, ux * s + uy * c
+            nx, ny = px + probe * rx, py + probe * ry
+            if self._point_blocked_2d(nx, ny, pz):
+                continue
+            if in_next and math.dist((nx, ny), zone["next_center"]) > zone["next_radius"]:
+                continue
+            return [rx * mag, ry * mag]
+        return move
+
+    def _peek_cover(self, me, weapons, target, zone, act):
+        laser = next((w for w in weapons[:2] if w and w["kind"] == "laser"), None)
+        if laser is None:
+            return False
+        charge = laser.get("charge") or 0
+        full = _stat(laser.get("stats") or {}, "charge", self.laser.get("charge", 0.75))
+        if not (0.0 < charge < 0.85 * full) or self._target_blocked(me, target):
+            return False
+        xy = me["pos"][:2]
+        roof = self._current_roof(me["pos"])
+        if roof is not None:
+            spot = roof[1]
+            if not _point_in_prism_2d(spot[0], spot[1], roof[3], roof[4]):
+                return False
+        else:
+            spot = self._find_cover(xy, target["pos"][:2], zone)
+            if spot is None:
+                return False
+        distance = math.dist(xy, spot)
+        if distance <= 2.0 or (roof is None and distance > 25.0):
+            return False
+        act["move"] = [(spot[0] - xy[0]) / distance, (spot[1] - xy[1]) / distance]
+        act["boost"] = False
+        return True
 
     def _current_roof(self, pos):
         x, y, z = pos
@@ -1453,6 +1514,8 @@ class Bot:
                 act["move"] = dodge_vec
                 if dodge_boost:
                     act["boost"] = True
+            if USE_WALL_STEER and self._current_roof(me["pos"]) is None:
+                act["move"] = self._steer_around_walls(act["move"], me, obs["zone"])
             self._apply_unstick(obs, act, charging=False)
             return act
 
@@ -1485,8 +1548,12 @@ class Bot:
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
+            if (USE_COVER_PEEK and charging and not finishing and not pushing and not holding_drop
+                    and escape is None and not movement.startswith("roof") and me.get("in_zone", True)
+                    and self._peek_cover(me, weapons, target, obs["zone"], act)):
+                state += " peek-c"
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
-            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
+            elif USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
                 laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
                 hit = self.last_hits.get(target["id"])
@@ -1575,6 +1642,8 @@ class Bot:
                         state += " ldodge"
 
         if not holding_drop and movement != "roof-climb":
+            if USE_WALL_STEER and self._current_roof(me["pos"]) is None:
+                act["move"] = self._steer_around_walls(act["move"], me, obs["zone"])
             self._apply_unstick(obs, act, charging)
         # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
         mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
