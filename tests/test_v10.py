@@ -424,6 +424,28 @@ def d4_long_hold_never_releases_outside_body():
     assert a["fire"][LASER] is False, "1.3 deg (2.3 m) is on the body: take it"
 
 
+# ----------------------------------------------------------------- v15: no chasing late
+@test
+def h1_late_wounded_far_not_chased():
+    b = bot()
+    b.act(make_obs(t=240.0, mechs=[mech(7, 0, 200, hp=500)]))
+    assert b.target_id is None
+
+
+@test
+def h2_late_attacker_still_fought():
+    b = bot()
+    a = b.act(make_obs(t=240.0, mechs=[mech(5, 150, 0)], events=[hit(5)], aim=(0.0, 0.0)))
+    assert b.target_id == 5
+
+
+@test
+def h3_early_wounded_still_chased():
+    b = bot()
+    b.act(make_obs(t=200.0, mechs=[mech(7, 0, 200, hp=500)]))
+    assert b.target_id == 7
+
+
 def run():
     failed = 0
     for fn in TESTS:

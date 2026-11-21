@@ -9,6 +9,7 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 
@@ -239,6 +240,9 @@ class Bot:
             if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
             if under_fire and not recent and distance > self.near_range and not hp <= laser_damage:
+                continue
+            # Late game: only fight what shoots us or comes close; don't walk out after wounded mechs.
+            if now >= LATE_T and not recent and distance > self.near_range:
                 continue
             if mech_id == self.target_id:
                 current = mech
