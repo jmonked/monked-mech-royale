@@ -156,6 +156,159 @@ def a9_npc_and_zone_damage_dont_count():
     assert b.target_id == 7, b.target_id
 
 
+# ----------------------------------------------------------------- Build B: laser discipline
+LASER = 1  # slot index of the laser in make_obs' default loadout
+
+
+def deg(x):
+    return math.radians(x)
+
+
+def direct_yaw(x, y):
+    return math.atan2(y, x)
+
+
+@test
+def b1_charge_begins():
+    b = bot()
+    a = b.act(make_obs(mechs=[mech(5, 100, 0)], events=[hit(5)]))
+    assert a["fire"][LASER] is True, a["fire"]
+    assert abs(a["aim"][0] - direct_yaw(100, 0)) < 1e-6
+
+
+@test
+def b2_release_when_charged_and_aligned():
+    b = bot()
+    a = b.act(make_obs(mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.75)],
+                       aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is False, a["fire"]
+
+
+@test
+def b3_far_target_needs_tight_aim():
+    b = bot()
+    w = [gun(), laser(charge=0.75)]
+    # 250 m away, torso 1.0 deg off: v8's fixed 1.5 deg gate would fire and miss (4.4 m off a 2.5 m body).
+    a = b.act(make_obs(mechs=[mech(5, 0, 250, hp=500)], weapons=w, aim=(direct_yaw(0, 250) + deg(1.0), 0)))
+    assert a["fire"][LASER] is True, "should keep holding"
+    a = b.act(make_obs(t=20.1, mechs=[mech(5, 0, 250, hp=500)], weapons=w,
+                       aim=(direct_yaw(0, 250) + deg(0.2), 0)))
+    assert a["fire"][LASER] is False, "should release when on target"
+
+
+@test
+def b4_target_lost_mid_charge_holds_then_lets_go():
+    b = bot()
+    b.act(make_obs(t=20.0, mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
+    a = b.act(make_obs(t=20.1, mechs=[], weapons=[gun(), laser(charge=0.4)]))
+    assert a["fire"][LASER] is True, "must not dump the charge the moment the target vanishes"
+    assert abs(a["aim"][0] - direct_yaw(100, 0)) < 1e-6, "keep aiming where it was"
+    a = b.act(make_obs(t=21.3, mechs=[], weapons=[gun(), laser(charge=0.75)]))
+    assert a["fire"][LASER] is False, "nobody left: let it go instead of crawling at half speed"
+
+
+@test
+def b5_target_changes_mid_charge():
+    b = bot()
+    b.act(make_obs(t=20.0, mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
+    # Mech 5 died; mech 6 shoots us from the other side.
+    a = b.act(make_obs(t=20.1, mechs=[mech(6, -80, 0)], events=[hit(6, math.pi),
+                       {"type": "kill", "target": 5}], weapons=[gun(), laser(charge=0.4)],
+                       aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is True, a["fire"]
+    assert abs(math.remainder(a["aim"][0] - math.pi, math.tau)) < 1e-6
+
+
+@test
+def b6_heal_mode_keeps_charge_for_an_aimed_shot():
+    b = bot()
+    w_mid = [gun(), laser(charge=0.4)]
+    b.act(make_obs(t=20.0, hp=1400, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.3)]))
+    a = b.act(make_obs(t=20.1, hp=600, mechs=[mech(5, 120, 0)], events=[hit(5)], weapons=w_mid))
+    assert b.healing, "expected heal mode"
+    assert a["fire"][LASER] is True, "v8 would dump the charge here"
+    a = b.act(make_obs(t=20.6, hp=600, mechs=[mech(5, 120, 0)], weapons=[gun(), laser(charge=0.75)],
+                       aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is False, "aimed full charge: fire it"
+
+
+@test
+def b7_gun_does_not_fire_unled_during_laser_aim():
+    b = bot()
+    # 150 m, crossing at 11.7 m/s: the bullet lead is ~2.7 deg off the laser's direct aim.
+    m = mech(5, 150, 0, vel=(0.0, 11.7, 0.0))
+    a = b.act(make_obs(mechs=[m], events=[hit(5)], weapons=[gun(), laser(charge=0.3)], aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is True
+    assert a["fire"][0] is False, "gun would fly ~7 m behind the target"
+
+
+@test
+def b12_laser_cooldown_uses_gun_lead():
+    b = bot()
+    m = mech(5, 150, 0, vel=(0.0, 11.7, 0.0))
+    o = make_obs(mechs=[m], events=[hit(5)], weapons=[gun(), laser(cooldown=1.0)])
+    a = b.act(o)
+    assert a["fire"][LASER] is False
+    lead = a["aim"][0]
+    assert lead > deg(2.0), lead
+    a = b.act(make_obs(t=20.1, mechs=[m], weapons=[gun(), laser(cooldown=0.9)], aim=(lead, 0.0)))
+    assert a["fire"][0] is True, "gun fires once the torso is on the lead"
+
+
+@test
+def b13_gun_close_range_gate_not_too_tight():
+    b = bot()
+    a = b.act(make_obs(mechs=[mech(5, 25, 0)], events=[hit(5)], weapons=[gun(), None], aim=(deg(2.5), 0)))
+    assert a["fire"][0] is True, "at 25 m a 2.5 deg error still hits"
+
+
+@test
+def b15_no_target_no_fire():
+    b = bot()
+    a = b.act(make_obs(weapons=[gun(), laser()]))
+    assert a["fire"] == [False, False]
+
+
+@test
+def b11_no_forced_early_release_when_misaligned():
+    b = bot()
+    a = b.act(make_obs(mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=[gun(), laser(charge=0.75)],
+                       aim=(deg(10), 0)))
+    assert a["fire"][LASER] is True, "turning onto target; the game's own 2 s hold limit is the backstop"
+
+
+@test
+def b17_torso_still_turning():
+    b = bot()
+    a = b.act(make_obs(mechs=[mech(5, 0, 100)], events=[hit(5)], weapons=[gun(), laser(charge=0.75)],
+                       aim=(0.0, 0.0)))
+    assert a["fire"][LASER] is True
+    assert abs(a["aim"][0] - math.pi / 2) < 1e-6
+
+
+@test
+def b18_flickering_target_releases_once():
+    b = bot()
+    releases = 0
+    charge, cooldown, prev_fire = 0.0, 0.0, False
+    t = 20.0
+    for k in range(40):
+        visible = k % 3 != 1  # target drops out of the list every third decision
+        mechs = [mech(5, 120, 0)] if visible else []
+        w = [gun(), laser(charge=charge, cooldown=cooldown)]
+        a = b.act(make_obs(t=t, mechs=mechs, events=[hit(5)] if k == 0 else [], weapons=w, aim=(0.0, 0.0)))
+        fire = a["fire"][LASER]
+        if charge > 0 and not fire:
+            releases += 1
+            charge, cooldown = 0.0, 1.65
+        elif fire and cooldown <= 0:
+            charge = min(0.75, charge + 0.1)
+        cooldown = max(0.0, cooldown - 0.1)
+        t += 0.1
+    # 4 s of fighting: one shot every ~0.75 s charge + 1.65 s cooldown at most.
+    assert 1 <= releases <= 2, releases
+
+
 def run():
     failed = 0
     for fn in TESTS:
