@@ -541,6 +541,33 @@ def k10_no_scan_with_laser_or_when_threatened():
     assert abs(a["aim"][0] - math.pi / 2) < 1e-6, a["aim"]
 
 
+@test
+def k11_holding_lightning_no_hunt_while_fighting():
+    b = bot()
+    o = make_obs(t=40.0, weapons=[gun(), lightning_w()], mechs=[mech(5, -30, 0)], events=[hit(5, math.pi)])
+    o["zone"]["next_center"] = [-100, 0]; o["pickups"] = [pickup(8001, "laser", 180, 0)]
+    a = b.act(o)
+    assert a["move"][0] < 0 and not a.get("boost"), a
+
+
+@test
+def k12_no_swap_with_a_mech_at_50m():
+    b = bot()
+    o = make_obs(t=131.0, weapons=[gun(), lightning_w()], mechs=[mech(5, 0, 50, charging=True)])
+    o["pickups"] = [pickup(8001, "laser", 2, 0)]
+    a = b.act(o)
+    assert "take" not in a and "drop" not in a, a
+
+
+@test
+def k13_no_sweep_while_hunting():
+    b = bot()
+    o = make_obs(t=100.9, weapons=[gun(), None]); o["pickups"] = [pickup(8001, "laser", 70, 0)]
+    o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert abs(a["aim"][0]) < 1e-6 and a["move"][0] > 0.99, a
+
+
 def run():
     failed = 0
     for fn in TESTS:

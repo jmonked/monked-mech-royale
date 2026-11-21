@@ -12,6 +12,7 @@ THREAT_RANGE = 60.0    # ...and only while it is this close
 SCAN_UNTIL = 120.0      # without a laser, look all the way around every SCAN_EVERY s until then
 SCAN_EVERY = 10.0
 SCAN_S = 1.8            # one full turn (torso turns 4 rad/s)
+SWAP_CLEAR_RANGE = 100.0  # no mech this close when we trade lightning for a laser
 LATE_HUNT_RANGE = 80.0  # after the opening, still fetch a laser/lightning this close when not fighting
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
@@ -352,6 +353,12 @@ class Bot:
         weapons = me.get("weapons") or []
         # Holding lightning: a laser is worth swapping in (sim: laser matches ~2.2 vs lightning ~1.5).
         swap_slot = next((i for i, w in enumerate(weapons[:2]) if w and w.get("kind") == "lightning"), None)
+        # Swapping (1.65 s laser equip delay) only when nobody is fighting us or close by.
+        if swap_slot is not None and not slot_empty and (
+                self.target_id is not None
+                or any(m.get("kind") == "mech" and m.get("pos") and math.dist(m["pos"][:2], xy) <= SWAP_CLEAR_RANGE
+                       for m in obs.get("mechs") or [])):
+            swap_slot = None
         if slot_empty or swap_slot is not None:
             best_take = best_hunt = (2, math.inf)
             for pickup_id, pickup in self.pickups.items():
@@ -612,7 +619,8 @@ class Bot:
             if bearing is not None:
                 state = "face"
                 act["aim"] = [bearing, 0.0]
-            elif now < SCAN_UNTIL and not any(w and w.get("kind") == "laser" for w in weapons):
+            elif (now < SCAN_UNTIL and movement != "laser hunt"
+                  and not any(w and w.get("kind") == "laser" for w in weapons)):
                 # No laser yet and nothing to watch: sweep the 120 deg vision wedge round to spot loot.
                 phase = now % SCAN_EVERY
                 if phase < SCAN_S:
