@@ -1,4 +1,4 @@
-"""Hunt for a laser, finish weakened mechs and collect nearby power cubes."""
+"""Hunt for a laser, finish weakened mechs, farm drones/crates and collect power cubes (v30)."""
 import json
 import math
 import traceback
@@ -11,6 +11,7 @@ THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long a
 THREAT_RANGE = 60.0    # ...and only while it is this close
 CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting)
 CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
+DRONE_RANGE = 55.0      # farm NPC drones this close (2 cubes per 350 HP, no squad escalation)
 KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
 KILL_LOOT_S = 25.0       # ...within this long after the kill
 PUSH_RANGE = 230.0     # push a weaker, isolated target from this far...
@@ -20,12 +21,15 @@ PUSH_CLEAR = 80.0      # and no other mech is this close to us
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
+DUEL_STRAFE_RAD = math.radians(35)  # diagonal angle during pushes/duels to dodge 252 m/s gun fire
+ROOF_LASER_MAX_DZ = 30.0  # max vertical climb for a rooftop laser when unpressured
 
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
-    "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
-    "gun_rate", "gun_mag", "lightning_efficiency", "lightning_range", "lightning_chain",
-    "gyros", "servos", "capacitor", "reactor", "jets", "gun_velocity", "sensors",
-    "laser_pierce", "mortar_reload", "mortar_splash", "mortar_velocity",
+    "plating", "laser_damage", "laser_charge", "armor", "gun_damage",
+    "gun_rate", "gun_mag", "nanites", "lightning_efficiency", "lightning_range",
+    "lightning_chain", "gyros", "servos", "gun_velocity", "sensors",
+    "laser_pierce", "capacitor", "reactor", "jets", "mortar_reload",
+    "mortar_splash", "mortar_velocity",
 ))}
 
 
@@ -52,7 +56,8 @@ def _load_cover(hello):
             cy += (ay + by) * cross
         if abs(area2) > 1e-8:
             center = (cx / (3 * area2), cy / (3 * area2))
-            buildings.append((center, max(math.dist(p, center) for p in ring), ring))
+            radius = max(math.dist(p, center) for p in ring)
+            buildings.append((center, radius, ring, prism["base"], prism["top"]))
     return buildings
 
 
@@ -73,6 +78,16 @@ def _crosses_ring(start, end, ring):
     crossings.sort()
     return any(min(leave, 1.0) - max(enter, 0.0) > 1e-9
                for enter, leave in zip(crossings[::2], crossings[1::2]))
+
+
+def _point_to_segment_dist_sq(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    seg_sq = dx * dx + dy * dy
+    if seg_sq <= 1e-12:
+        return (px - ax) ** 2 + (py - ay) ** 2
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg_sq))
+    qx, qy = ax + t * dx, ay + t * dy
+    return (px - qx) ** 2 + (py - qy) ** 2
 
 
 class Bot:
@@ -97,6 +112,9 @@ class Bot:
         crates = config.get("crates") or {}
         self.crate_radius = _stat(crates, "radius", 1.4)
         self.crate_height = _stat(crates, "height", 2.4)
+        npc = config.get("npc") or {}
+        self.npc_radius = _stat(npc, "radius", 1.8)
+        self.npc_half_height = 0.5 * _stat(npc, "height", 3.5)
         self.half_height = 0.5 * _stat(config.get("mech") or {}, "height", 9)
         self.tracks = {}
         self.size_per_cube = _stat(cubes, "size_per_cube", 0.05)
@@ -124,15 +142,35 @@ class Bot:
         self.cover_spot = None
         self.cover_threat = None
         self.cover_time = -math.inf
+        self.pos_history = []  # rolling (t, x, y) for wall-unsticker
+        self.unstick_until = -math.inf
+        self.unstick_started = -math.inf
+        self.unstick_sign = 1.0
+        self._now = 0.0
         try:
             self.buildings = _load_cover(hello)
         except Exception:
             self.buildings = []
 
+    def _building_blocked(self, a, b):
+        """True if a solid building/stadium prism blocks the 3D segment a -> b. Trees never block."""
+        ax, ay, az = a
+        bx, by, bz = b
+        lo_z = min(az, bz)
+        hi_z = max(az, bz)
+        for center, radius, ring, base, top in self.buildings:
+            if top <= lo_z or base >= hi_z:
+                continue
+            if _point_to_segment_dist_sq(center[0], center[1], ax, ay, bx, by) > radius * radius:
+                continue
+            if _crosses_ring((ax, ay), (bx, by), ring):
+                return True
+        return False
+
     def _find_cover(self, xy, threat, zone):
         closest = None
         best_distance = math.inf
-        for center, radius, ring in self.buildings:
+        for center, radius, ring, _base, _top in self.buildings:
             distance = math.dist(xy, center)
             if distance > 120 or distance - radius - 4 >= best_distance:
                 continue
@@ -244,7 +282,7 @@ class Bot:
             wounded = hp is not None and max_hp is not None and hp <= 0.5 * max_hp
             if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
-            if under_fire and not recent and distance > self.near_range and not hp <= laser_damage:
+            if under_fire and not recent and distance > self.near_range and not (hp is not None and hp <= laser_damage):
                 continue
             # Late game: only fight what shoots us or comes close; don't walk out after wounded mechs.
             if now >= LATE_T and not recent and distance > self.near_range:
@@ -341,9 +379,10 @@ class Bot:
         self.cube_progress = (None, math.inf, now)
         return None
 
-    def _movement(self, obs, slot_empty, act, drop=None):
+    def _movement(self, obs, weapons, act, drop=None):
         me = obs["self"]
         xy = me["pos"][:2]
+        mz = me["pos"][2]
         zone = obs["zone"]
         goal = zone["next_center"]
         visible = {p["id"]: p for p in obs.get("pickups") or []}
@@ -355,32 +394,66 @@ class Bot:
             if event.get("type") in ("took", "take_failed"):
                 self.pickups.pop(event.get("id"), None)
 
+        has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
+        slot_empty = len(weapons) < 2 or weapons[1] is None
+        lightning_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "lightning"), None)
+        laser_charging = any(w and w["kind"] == "laser" and (w.get("charge") or 0) > 0 for w in weapons[:2])
+        enemy_close = any(
+            m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
+            and math.dist(m["pos"][:2], xy) <= self.near_range
+            for m in obs.get("mechs") or []
+        )
+
         state = "zone"
         outside = not me["in_zone"]
         boost = outside
+        jump = obs["tick"] % 40 == 0
         hunt_id = None
-        if slot_empty:
+        hunt_pickup = None
+
+        # Fix #1: Keep hunting a laser until LATE_T (not just 90 s), allow swapping lightning -> laser,
+        # and allow climbing low reachable roofs (<= 30 m) when unpressured.
+        want_weapon = (not has_laser) and (slot_empty or lightning_slot is not None)
+        if want_weapon:
             best_take = best_hunt = (2, math.inf)
             for pickup_id, pickup in self.pickups.items():
                 kind = pickup["kind"]
-                if kind not in ("laser", "lightning"):
+                if kind == "laser":
+                    pass
+                elif kind == "lightning" and slot_empty:
+                    pass
+                else:
                     continue
                 location = pickup["pos"][:2]
                 distance = math.dist(xy, location)
+                dz = pickup["pos"][2] - mz
                 rank = (0 if kind == "laser" else 1, distance)
-                if pickup_id in visible and distance <= self.reach and rank < best_take:
+                if (pickup_id in visible and distance <= self.reach and abs(dz) <= 4.0
+                        and rank < best_take and not laser_charging):
                     act["take"] = pickup_id
+                    if not slot_empty and lightning_slot is not None and kind == "laser":
+                        act["drop"] = lightning_slot
+                    else:
+                        act.pop("drop", None)
                     best_take = rank
-                # Skip rooftop pickups (take needs <= 4 m vertical) and ones we failed to reach.
-                if pickup["pos"][2] - me["pos"][2] > 5 or pickup_id in self.unreachable:
+                if pickup_id in self.unreachable:
                     continue
-                if (obs["t"] < 90 and distance <= 250 and rank < best_hunt
+                # Ground pickups always eligible; low-roof lasers eligible when energy >= 60 and no close enemy.
+                if dz > 5.0:
+                    if not (kind == "laser" and dz <= ROOF_LASER_MAX_DZ
+                            and me.get("energy", 0) >= 60 and not enemy_close):
+                        continue
+                # Hunt lasers until LATE_T; hunt fallback lightning only in the first 90 s.
+                time_ok = obs["t"] < (LATE_T if kind == "laser" else 90.0)
+                if (time_ok and distance <= 250 and rank < best_hunt
                         and math.dist(location, zone["next_center"]) <= zone["next_radius"]):
                     best_hunt = rank
                     hunt_id = pickup_id
+                    hunt_pickup = pickup
                     state = "laser hunt"
                     goal = location
                     boost = outside or (me["energy"] >= 30 and distance > 25)
+
         # Preserve the default facing even when collecting a drop or cube.
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
@@ -409,14 +482,19 @@ class Bot:
                 self.hunt_progress[hunt_id] = (best_hunt[1], now)
             elif now - since > 6:
                 self.unreachable.add(hunt_id)
+            # Jet climb when approaching a low-roof laser.
+            if hunt_pickup is not None and hunt_pickup["pos"][2] - mz > 3.5 and best_hunt[1] <= 12.0:
+                if me.get("energy", 0) >= 15:
+                    jump = bool(me.get("grounded", False))
+                    boost = True
 
         act.update(move=[math.cos(move_yaw), math.sin(move_yaw)], aim=[yaw, 0.0],
-                   boost=boost, jump=obs["tick"] % 40 == 0)
+                   boost=boost, jump=jump)
         return state
 
     def _track(self, mechs, now):
         for m in mechs:
-            if m.get("kind") != "mech" or m.get("id") is None or not m.get("pos"):
+            if m.get("kind") not in ("mech", "npc") or m.get("id") is None or not m.get("pos"):
                 continue
             pos, vel = m["pos"], m.get("vel")
             prev = self.tracks.get(m["id"])
@@ -429,12 +507,16 @@ class Bot:
         return 1 + self.size_per_cube * (mech.get("cubes") or 0)
 
     def _lead_aim(self, me, target, delay, speed=None):
-        vel = self.tracks[target["id"]][2]
+        vel = self.tracks.get(target["id"], (0, target["pos"], target.get("vel") or (0, 0, 0)))[2]
         own = me.get("vel") or (0, 0, 0)
         stats = me.get("stats") or {}
         dx, dy, dz = (p - q + (v - u) * delay for p, q, v, u in zip(target["pos"], me["pos"], vel, own))
         own_scale = self._scale(me)
-        dz += self.half_height * self._scale(target) - _stat(stats, "muzzle_height", self.muzzle_height * own_scale)
+        if target.get("kind") == "npc":
+            target_half = self.npc_half_height
+        else:
+            target_half = self.half_height * self._scale(target)
+        dz += target_half - _stat(stats, "muzzle_height", self.muzzle_height * own_scale)
         offset = _stat(stats, "radius", self.mech_radius * own_scale) + 0.5
         if speed is not None:
             # |d + v*t| = offset + speed*t. Rationalized positive root for sub-projectile targets.
@@ -448,25 +530,31 @@ class Bot:
         return [math.atan2(dy, dx), math.atan2(dz, math.hypot(dx, dy))], math.hypot(dx, dy, dz)
 
     def _on_body(self, actual, aim, distance, target, spread=None):
-        if not actual or None in actual:
+        if not actual or None in actual or distance <= 1e-6:
             return False
-        scale = self._scale(target)
-        width = math.atan2(self.mech_radius * scale, distance)
-        projected_height = self.half_height * math.cos(aim[1]) + self.mech_radius * abs(math.sin(aim[1]))
-        height = math.atan2(projected_height * scale, distance)
+        if target.get("kind") == "npc":
+            radius = self.npc_radius
+            half_h = self.npc_half_height
+        else:
+            scale = self._scale(target)
+            radius = self.mech_radius * scale
+            half_h = self.half_height * scale
+        width = math.atan2(radius, distance)
+        projected_height = half_h * math.cos(aim[1]) + radius * abs(math.sin(aim[1]))
+        height = math.atan2(projected_height, distance)
         yaw = abs(math.remainder(actual[0] - aim[0], math.tau)) * math.cos(aim[1])
         pitch = abs(actual[1] - aim[1])
         if spread is None:
             gate = min(math.radians(4), 0.8 * width)
-            if self._now - self.laser_full_since >= 0.8:
+            if self.laser_full_since is not None and self._now - self.laser_full_since >= 0.8:
                 return yaw <= min(2 * gate, width) and pitch <= height
             return yaw <= gate and pitch <= 0.8 * height
         # Elliptical approximation to the cylinder silhouette; reserve part of a spread sigma at its edge.
         gate = min(width, math.radians(12), max(math.radians(0.1), width - 0.25 * math.radians(spread)))
-        return math.hypot(yaw, pitch * width / height) <= gate
+        return math.hypot(yaw, pitch * width / max(height, 1e-6)) <= gate
 
     def _laser_ready(self, me, weapon, target):
-        """Full charge and the torso (as measured now) is on the target's body."""
+        """Full charge, unobstructed by solid buildings, and torso on the target's body."""
         stats = weapon.get("stats") or {}
         charge = weapon.get("charge") or 0
         full = 0.93 * _stat(stats, "charge", self.laser.get("charge", 0.75))
@@ -475,6 +563,14 @@ class Bot:
             return False
         if self.laser_full_since is None:
             self.laser_full_since = self._now
+        # Fix #2: Do not waste a 315-dmg laser into a solid building wall during the 5 s memory window.
+        own_scale = self._scale(me)
+        muzzle_h = _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height * own_scale)
+        muzzle_pos = (me["pos"][0], me["pos"][1], me["pos"][2] + muzzle_h)
+        target_half = self.npc_half_height if target.get("kind") == "npc" else self.half_height * self._scale(target)
+        target_pos = (target["pos"][0], target["pos"][1], target["pos"][2] + target_half)
+        if self._building_blocked(muzzle_pos, target_pos) and self._now - self.laser_full_since < 1.8:
+            return False
         aim, distance = self._lead_aim(me, target, 0.05)
         return self._on_body(me.get("aim"), aim, distance, target)
 
@@ -483,8 +579,9 @@ class Bot:
         muzzle_height = _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
         muzzle = (x, y, z + muzzle_height)
         tx, ty, tz = target["pos"]
+        target_half = self.npc_half_height if target.get("kind") == "npc" else self.half_height * self._scale(target)
         direct = [math.atan2(ty - y, tx - x),
-                  math.atan2(tz + 4.5 - muzzle[2], math.hypot(tx - x, ty - y))]
+                  math.atan2(tz + target_half - muzzle[2], max(math.hypot(tx - x, ty - y), 1e-6))]
         distance = math.dist(me["pos"], target["pos"])
         actual = me.get("aim")
 
@@ -534,6 +631,34 @@ class Bot:
                     act["fire"][i] = aligned(direct[0], 0.4 * cone)
         act["aim"] = direct if use_direct else aim
         return charging
+
+    def _shoot_drone(self, obs, weapons, act):
+        """Fix #3: Farm nearby NPC drones (2 cubes per 350 HP, no squad escalation) when idle and < 10 cubes."""
+        me = obs["self"]
+        if obs["t"] >= LATE_T or (me.get("cubes") or 0) >= self.cube_cap:
+            return False
+        x, y, z = me["pos"]
+        zone = obs["zone"]
+        own_scale = self._scale(me)
+        muzzle_h = _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height * own_scale)
+        muzzle = (x, y, z + muzzle_h)
+        best = None
+        for m in obs.get("mechs") or []:
+            if m.get("kind") != "npc" or not m.get("pos"):
+                continue
+            dx, dy, dz = m["pos"][0] - x, m["pos"][1] - y, m["pos"][2] - z
+            distance = math.hypot(dx, dy)
+            if (distance <= DRONE_RANGE and abs(dz) <= 4.0
+                    and math.dist(m["pos"][:2], zone["next_center"]) <= zone["next_radius"]
+                    and (best is None or distance < best[1])):
+                drone_center = (m["pos"][0], m["pos"][1], m["pos"][2] + self.npc_half_height)
+                if not self._building_blocked(muzzle, drone_center):
+                    best = (m, distance)
+        if best is None:
+            return False
+        drone, _distance = best
+        self._fight(me, weapons, drone, act)
+        return True
 
     def _shoot_crate(self, obs, weapons, act):
         """Nothing to fight or watch: break the nearest open ground crate within cube reach
@@ -587,6 +712,49 @@ class Bot:
         return not any(m.get("kind") == "mech" and m.get("id") != target.get("id") and m.get("pos")
                        and m.get("id") not in self.killed and math.dist(m["pos"][:2], me["pos"][:2]) <= PUSH_CLEAR
                        for m in obs.get("mechs") or [])
+
+    def _rotate_move_safe(self, move, angle, xy, zone):
+        """Rotate a unit move vector by +/- angle, preferring the side that stays inside next_center/next_radius."""
+        mx, my = move
+        if math.hypot(mx, my) <= 1e-6:
+            return move
+        for sign in (1.0, -1.0):
+            ang = angle * sign
+            c, s = math.cos(ang), math.sin(ang)
+            rx, ry = mx * c - my * s, mx * s + my * c
+            ahead = (xy[0] + 6.0 * rx, xy[1] + 6.0 * ry)
+            if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
+                return [rx, ry]
+        return move
+
+    def _apply_unstick(self, obs, act, charging):
+        """Fix #4: 0.5 s wall-unsticker (rotate move 90 deg + hop/jet over low ledges)."""
+        now = obs["t"]
+        me = obs["self"]
+        x, y = me["pos"][0], me["pos"][1]
+        self.pos_history.append((now, x, y))
+        self.pos_history = [p for p in self.pos_history if now - p[0] <= 0.65]
+
+        move = act.get("move") or [0.0, 0.0]
+        if math.hypot(move[0], move[1]) <= 0.3:
+            return
+
+        if now >= self.unstick_until and not charging:
+            oldest = self.pos_history[0]
+            if now - oldest[0] >= 0.45 and math.hypot(x - oldest[1], y - oldest[2]) < 1.5:
+                if now - self.unstick_started <= 3.0:
+                    self.unstick_sign = -self.unstick_sign
+                self.unstick_started = now
+                self.unstick_until = now + 1.2
+
+        if now < self.unstick_until:
+            ang = self.unstick_sign * (math.pi / 2.0)
+            c, s = math.cos(ang), math.sin(ang)
+            mx, my = move
+            act["move"] = [mx * c - my * s, mx * s + my * c]
+            if now - self.unstick_started <= 0.6 and me.get("energy", 0) >= 45:
+                act["jump"] = bool(me.get("grounded", False))
+                act["boost"] = True
 
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
@@ -692,28 +860,46 @@ class Bot:
                     for i, weapon in enumerate(weapons[:2]):
                         if weapon and weapon["kind"] == "laser" and not (weapon.get("charge") or 0) > 0:
                             act["fire"][i] = False
+            self._apply_unstick(obs, act, charging=False)
             return act
-        movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act, drop)
+
+        movement = self._movement(obs, weapons, act, drop)
         state = "idle"
         charging = False
         if target is not None:
             hp = target.get("hp")
             state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
             charging = self._fight(me, weapons, target, act)
+            strafe_sign = 1.0 if int(now) % 2 == 0 else -1.0
             if movement == "zone" and self._should_push(obs, target):
-                # A weaker mech, alone: close in and finish it instead of trading shots from 150 m.
+                # Fix #4: Diagonal 35-deg push closes distance while dodging 252 m/s gun bullets.
                 dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
                 dist = math.hypot(dx, dy)
-                act["move"] = [dx / dist, dy / dist]
-                act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
-                state += " push"
+                if dist > 1e-6:
+                    push_dir = [dx / dist, dy / dist]
+                    act["move"] = self._rotate_move_safe(push_dir, strafe_sign * DUEL_STRAFE_RAD,
+                                                         me["pos"][:2], obs["zone"])
+                    act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
+                    state += " push"
+            elif movement == "zone":
+                act["move"] = self._rotate_move_safe(act["move"], strafe_sign * DUEL_STRAFE_RAD,
+                                                     me["pos"][:2], obs["zone"])
         else:
             bearing = self._face_bearing(mechs, me["pos"], now)
             if bearing is not None:
                 state = "face"
                 act["aim"] = [bearing, 0.0]
+            elif self._shoot_drone(obs, weapons, act):
+                state = "drone"
             elif self._shoot_crate(obs, weapons, act):
                 state = "crate"
+            else:
+                # Fix #1: Idle 360-degree scan to spot floor lasers, cubes, crates, and drones.
+                state = "scan"
+                act["aim"] = [(now * 1.2) % math.tau, 0.0]
+
+        if drop is None:
+            self._apply_unstick(obs, act, charging)
         mf.draw.label(f"{movement} {state}" + (" chg" if charging else ""))
         return act
 
