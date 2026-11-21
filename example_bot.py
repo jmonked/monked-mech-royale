@@ -370,7 +370,8 @@ class Bot:
                     continue
                 # Early: anything within 250 m. Later: within 80 m while not fighting (e.g. a kill's drop).
                 if (((obs["t"] < 90 and distance <= 250)
-                     or (distance <= LATE_HUNT_RANGE and self.target_id is None)) and rank < best_hunt
+                     or (distance <= LATE_HUNT_RANGE and self.target_id is None
+                         and pickup_id in visible and me["in_zone"])) and rank < best_hunt
                         and math.dist(location, zone["next_center"]) <= zone["next_radius"]):
                     best_hunt = rank
                     hunt_id = pickup_id
