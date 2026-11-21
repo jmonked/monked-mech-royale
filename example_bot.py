@@ -282,6 +282,7 @@ class Bot:
         self.healing = False
         self.heal_lockout_until = -math.inf
         self.last_dodge_t = -math.inf
+        self.want_jet_until = -math.inf
         self.kill_spots = []
         self.mech_seen = {}
         self.cover_spot = None
@@ -951,6 +952,7 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
+                    self.want_jet_until = max(self.want_jet_until, now + 0.6)
         elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
@@ -1384,6 +1386,7 @@ class Bot:
             if now - self.unstick_started <= 0.5 and self.unstick_streak >= 2 and me.get("energy", 0) >= 60:
                 act["jump"] = bool(me.get("grounded", False))
                 act["boost"] = True
+                self.want_jet_until = max(self.want_jet_until, now + 0.6)
 
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
@@ -1767,7 +1770,7 @@ class Bot:
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
-        if USE_NO_AUTOJUMP and movement != "roof-climb" and not act.get("jump") and not me.get("grounded", True):
+        if USE_NO_AUTOJUMP and movement != "roof-climb" and now > self.want_jet_until and not act.get("jump") and not me.get("grounded", True):
             act["boost"] = False
         # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
         mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
