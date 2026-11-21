@@ -1486,9 +1486,11 @@ class Bot:
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
-            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
+            if (USE_RELOAD_COVER and not finishing and not pushing and not holding_drop
+                    and not movement.startswith("roof") and me.get("in_zone", True)):
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
-                laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
+                other_ready = any(w and w["kind"] != "gun" and (w.get("cooldown") or 0) <= 0.5 for w in weapons[:2])
+                laser_busy = not other_ready
                 hit = self.last_hits.get(target["id"])
                 being_shot = hit is not None and now - hit[0] <= 2.0
                 if reloading and laser_busy and being_shot and not self._target_blocked(me, target):
