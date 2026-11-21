@@ -7,6 +7,9 @@ from pathlib import Path
 import mechfight as mf
 
 
+THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
+THREAT_RANGE = 60.0    # ...and only while it is this close
+
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
     "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
     "gun_rate", "gun_mag", "lightning_efficiency", "lightning_range", "lightning_chain",
@@ -82,6 +85,7 @@ class Bot:
         cubes = config.get("cubes") or {}
         self.cube_radius = _stat(cubes, "pickup_radius", 3.5)
         self.cube_cap = _stat(cubes, "stat_cap", 10)
+        self.damage_per_cube = _stat(cubes, "damage_per_cube", 0.04)
         gun = (config.get("weapons") or {}).get("gun") or {}
         self.gun_speed = _stat(gun, "speed", 252)
         self.gun_range = _stat(gun, "range", 230)
@@ -191,13 +195,27 @@ class Bot:
                 if 0 <= attacker < 16:
                     self.last_mech_bearing = (now, bearing)
 
-    def _choose_target(self, mechs, pos, now, weapons):
+    def _choose_target(self, mechs, pos, now, weapons, cubes=0):
         laser = next((w for w in weapons if w and w["kind"] == "laser"), None)
         if laser:
             reach = _stat(laser.get("stats") or {}, "range", _stat(self.laser, "range", 280))
         else:
             gun = next((w for w in weapons if w and w["kind"] == "gun"), None) or {}
             reach = _stat(gun.get("stats") or {}, "range", self.gun_range)
+
+        laser_damage = 0.0
+        if laser:
+            laser_damage = _stat(laser.get("stats") or {}, "damage", _stat(self.laser, "damage", 315))
+            # Cubes scale damage; keep a 10% margin for the target's armor.
+            laser_damage *= 0.9 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
+        # Under fire: a mech that hit us in the last 3 s from close range. While one is around,
+        # don't turn away to chase a distant wounded mech unless one full laser shot kills it.
+        under_fire = any(
+            mech.get("kind") == "mech" and mech.get("id") is not None and 0 <= mech["id"] < 16
+            and mech["id"] not in self.killed and mech.get("pos")
+            and now - self.last_hits.get(mech["id"], (-math.inf,))[0] <= THREAT_RECENT_S
+            and math.dist(mech["pos"], pos) <= THREAT_RANGE
+            for mech in mechs)
 
         best = current = None
         best_rank = None
@@ -211,6 +229,8 @@ class Bot:
             hp, max_hp = mech.get("hp"), mech.get("max_hp")
             wounded = hp is not None and max_hp is not None and hp <= 0.5 * max_hp
             if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
+                continue
+            if under_fire and not recent and distance > self.near_range and not hp <= laser_damage:
                 continue
             if mech_id == self.target_id:
                 current = mech
@@ -452,7 +472,7 @@ class Bot:
         if choices:
             act["pick"] = min(range(len(choices)),
                               key=lambda i: UPGRADE_RANK.get(choices[i].get("id"), len(UPGRADE_RANK)))
-        target = self._choose_target(mechs, me["pos"], now, weapons)
+        target = self._choose_target(mechs, me["pos"], now, weapons, me.get("cubes", 0))
         # Don't break off to heal when the target is nearly dead and weaker than us: take the kill.
         finishing = (target is not None and target.get("hp") is not None and target.get("max_hp")
                      and target["hp"] <= 0.3 * target["max_hp"] and target["hp"] < me["hp"])
