@@ -1,4 +1,4 @@
-"""v34c: v34 (4.67) + review/critic bug fixes + YY reload. v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
+"""v34d: v34 (4.67) + review/critic bug fixes + quiet-time YY reload. v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
 more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
 import json
 import math
@@ -15,7 +15,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
-USE_YY_RELOAD = True         # v34c: top the gun up (<= 70% mag) in quiet moments so every fight starts full
+USE_YY_RELOAD = False        # v34c: top the gun up (<= 70% mag) in quiet moments so every fight starts full
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -1155,11 +1155,11 @@ class Bot:
                 break
         return True
 
-    def _maybe_early_reload(self, weapons, act):
+    def _maybe_early_reload(self, weapons, act, quiet=False):
         for w in weapons[:2]:
             if w and w["kind"] == "gun":
                 mag = _stat(w.get("stats") or {}, "mag", 12) or 12
-                limit = max(6, int(0.7 * mag)) if USE_YY_RELOAD else 6
+                limit = max(6, int(0.7 * mag)) if (USE_YY_RELOAD and quiet) else 6
                 if (w.get("reload") or 0) <= 0 and (w.get("ammo") is not None) and 0 < w["ammo"] <= limit:
                     act["reload"] = True
                 return
@@ -1218,7 +1218,7 @@ class Bot:
             max(0.5, min(5.0, math.degrees(math.atan2(0.8 * self.crate_radius, max(distance, 1.0))))))
         laser_slot = next((i for i, w in enumerate(weapons[:2]) if w and w["kind"] == "laser"
                            and (w.get("cooldown", 0) <= 0 or (w.get("charge") or 0) > 0)), None)
-        if gun_only and not any(w and w["kind"] == "gun" for w in weapons[:2]):
+        if gun_only and not any(w and w["kind"] == "gun" and (w.get("reload") or 0) <= 0 for w in weapons[:2]):
             return False
         if laser_slot is not None and not gun_only:
             w = weapons[laser_slot]
@@ -1475,7 +1475,9 @@ class Bot:
         charging = False
         pushing = False
         escape = None
-        on_roof_now = self._current_roof(me["pos"]) is not None
+        _roof = self._current_roof(me["pos"])
+        on_roof_now = (_roof is not None
+                       and math.dist(_roof[1], obs["zone"]["next_center"]) <= obs["zone"]["next_radius"] - 4.0)
         if target is not None:
             hp = target.get("hp")
             state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
@@ -1533,22 +1535,24 @@ class Bot:
             elif self._shoot_beam_origin(obs, weapons, act):
                 state = "beam-ret"
             else:
-                self._maybe_early_reload(weapons, act)
                 # Point 16: break crates when no mech is within 120 m and nobody hit us in 5 s.
                 near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
                                    and math.dist(m["pos"], me["pos"]) <= 120.0 for m in mechs)
                                or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5)
                                or (self.last_beam_threat is not None and now - self.last_beam_threat[0] <= 3)
                                or (self.last_sound is not None and now - self.last_sound[0] <= 2))
-                if (USE_MORE_CUBES and not near_threat and (me.get("cubes") or 0) < DRONE_CUBE_CAP
+                under_cap = (me.get("cubes") or 0) < DRONE_CUBE_CAP
+                if (USE_MORE_CUBES and not near_threat and under_cap
                         and self._shoot_crate(obs, weapons, act, gun_only=True)):
                     state = "crate"
                 else:
+                    # YY reload: top up only when it's quiet (no mech near, no recent hit/beam/sound).
+                    self._maybe_early_reload(weapons, act, quiet=not near_threat)
                     bearing = self._face_bearing(mechs, me["pos"], now)
                     if bearing is not None:
                         state = "face"
                         act["aim"] = [bearing, 0.0]
-                    elif self._shoot_crate(obs, weapons, act):
+                    elif under_cap and self._shoot_crate(obs, weapons, act):
                         state = "crate"
                     else:
                         has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
