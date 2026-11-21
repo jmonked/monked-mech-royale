@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v44: v39 (4.73) + switch-gated NO_AUTOJUMP, SHOOT_BACK, HEAL_FIX, and audit hygiene fixes."""
 import json
 import math
 import traceback
@@ -14,6 +14,9 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_NO_AUTOJUMP = True       # v44: stop kit auto-jump every 2s & prevent accidental air-jetting on boost
+USE_SHOOT_BACK = True        # v44: prioritize active/aiming shooters & return blind gun fire at unseen shooters
+USE_HEAL_FIX = True          # v44: heal fights back vs any recent shooter, near cover (<=40m), ldodge+zone-run, 45/60m hysteresis
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -21,7 +24,7 @@ CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 
 CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
 DRONE_RANGE = 55.0      # farm NPC drones this close (2 cubes per 350 HP, no squad escalation)
 DRONE_CUBE_CAP = 15     # farm drones up to the 15-cube upgrade threshold (plating snowball)
-KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
+KILL_LOOT_RANGE = 60.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
 KILL_LOOT_S = 25.0       # ...within this long after the kill
 PUSH_RANGE = 230.0     # push a weaker, isolated target from this far...
 PUSH_STOP = 35.0       # ...until this close
@@ -277,6 +280,8 @@ class Bot:
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
         self.healing = False
+        self.heal_lockout_until = -math.inf
+        self.last_dodge_t = -math.inf
         self.kill_spots = []
         self.mech_seen = {}
         self.cover_spot = None
@@ -539,28 +544,49 @@ class Bot:
     def _heal(self, obs, act):
         me = obs["self"]
         pos = me["pos"]
+        now = obs["t"]
+        if USE_HEAL_FIX and not self.healing and now < self.heal_lockout_until:
+            return False
         threshold = 0.85 if self.healing else (0.65 if self.is_finals else 0.5)
         if not me["in_zone"] or me["hp"] >= threshold * me["max_hp"]:
             self.healing = False
             return False
 
         on_roof = self._current_roof(pos)
-        nearest_mech = min((m for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos")),
-                           key=lambda m: math.dist(pos, m["pos"]), default=None)
+        mechs = [m for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed]
+        nearest_mech = min(mechs, key=lambda m: math.dist(pos, m["pos"]), default=None)
         if nearest_mech is not None:
             dist_3d = math.dist(pos, nearest_mech["pos"])
             safe_above = on_roof is not None and (pos[2] - nearest_mech["pos"][2] >= 7.0) and self._target_blocked(me, nearest_mech)
-            if dist_3d <= self.near_range and not safe_above:
+            exit_dist = self.near_range if self.healing else (60.0 if USE_HEAL_FIX else self.near_range)
+            if dist_3d <= exit_dist and not safe_above:
+                if self.healing and USE_HEAL_FIX:
+                    self.heal_lockout_until = now + 2.0
                 self.healing = False
                 return False
 
-        now, zone, xy = obs["t"], obs["zone"], pos[:2]
+        zone, xy = obs["zone"], pos[:2]
         threat = None
         yaw = me["aim"][0]
-        if nearest_mech is not None:
+        recent_hit = None
+        if USE_HEAL_FIX:
+            recent_hit = max(
+                ((ht, aid, brg) for aid, (ht, brg) in self.last_hits.items()
+                 if 0 <= aid < 16 and aid != me["id"] and aid not in self.killed and now - ht <= 3.0),
+                default=None,
+            )
+        if recent_hit is not None:
+            atk_m = next((m for m in mechs if m.get("id") == recent_hit[1]), None)
+            if atk_m is not None:
+                threat = atk_m["pos"][:2]
+                yaw = math.atan2(threat[1] - xy[1], threat[0] - xy[0])
+            elif recent_hit[2] is not None:
+                yaw = recent_hit[2]
+                threat = (xy[0] + 100 * math.cos(yaw), xy[1] + 100 * math.sin(yaw))
+        if threat is None and nearest_mech is not None:
             threat = nearest_mech["pos"][:2]
             yaw = math.atan2(threat[1] - xy[1], threat[0] - xy[0])
-        elif self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 10:
+        elif threat is None and self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 10:
             yaw = self.last_mech_bearing[1]
             threat = (xy[0] + 100 * math.cos(yaw), xy[1] + 100 * math.sin(yaw))
 
@@ -582,16 +608,26 @@ class Bot:
         self.healing = True
         move, boost = [0.0, 0.0], False
         spot = self.cover_spot
-        if spot is not None and math.dist(spot, zone["next_center"]) <= zone["next_radius"] - 5:
+        max_cov_d = 40.0 if USE_HEAL_FIX else 120.0
+        if spot is not None and math.dist(spot, zone["next_center"]) <= zone["next_radius"] - 5 and math.dist(xy, spot) <= max_cov_d:
             distance = math.dist(xy, spot)
             if distance > 3:
-                move = [(spot[0] - xy[0]) / distance, (spot[1] - xy[1]) / distance]
+                raw_m = [(spot[0] - xy[0]) / distance, (spot[1] - xy[1]) / distance]
+                move = self._rotate_move_safe(raw_m, _strafe_sign(now) * math.radians(25), xy, zone) if (USE_HEAL_FIX and recent_hit is not None) else raw_m
                 boost = me["energy"] >= 30 and distance > 20
         elif threat is not None:
             ux, uy = -math.cos(yaw), -math.sin(yaw)
             ahead = (xy[0] + 4 * ux, xy[1] + 4 * uy)
             if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
-                move = [ux, uy]
+                move = self._rotate_move_safe([ux, uy], _strafe_sign(now) * math.radians(30), xy, zone) if USE_HEAL_FIX else [ux, uy]
+            elif USE_HEAL_FIX:
+                zc = zone["next_center"]
+                dz = math.dist(xy, zc)
+                if dz > 1e-6:
+                    move = self._rotate_move_safe([(zc[0] - xy[0]) / dz, (zc[1] - xy[1]) / dz],
+                                                  _strafe_sign(now) * math.radians(30), xy, zone)
+        if USE_NO_AUTOJUMP and not me.get("grounded", True):
+            boost = False
         act.update(move=move, boost=boost, aim=[yaw, 0.0])
         mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"[:80])
         return True
@@ -659,11 +695,12 @@ class Bot:
             laser_damage = _stat(laser.get("stats") or {}, "damage", _stat(self.laser, "damage", 315))
             laser_damage *= 0.955 * 0.76 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
 
+        threat_r = self.gun_range if USE_SHOOT_BACK else THREAT_RANGE
         under_fire = any(
             mech.get("kind") == "mech" and mech.get("id") is not None and 0 <= mech["id"] < 16
             and mech["id"] not in self.killed and mech.get("pos")
             and now - self.last_hits.get(mech["id"], (-math.inf,))[0] <= THREAT_RECENT_S
-            and math.dist(mech["pos"], pos) <= THREAT_RANGE
+            and math.dist(mech["pos"], pos) <= threat_r
             for mech in mechs)
 
         best = current = None
@@ -675,19 +712,30 @@ class Bot:
             distance = math.dist(mech["pos"], pos)
             hit = self.last_hits.get(mech_id)
             recent = hit is not None and now - hit[0] <= 8.0
+            active_hit = hit is not None and now - hit[0] <= THREAT_RECENT_S
+            aiming_at_me = False
+            if USE_SHOOT_BACK and distance <= self.gun_range:
+                e_aim = mech.get("aim")
+                if e_aim and e_aim[0] is not None:
+                    to_me = math.atan2(pos[1] - mech["pos"][1], pos[0] - mech["pos"][0])
+                    cone_deg = 8.0 if mech.get("charging") else 4.0
+                    if abs(math.remainder(e_aim[0] - to_me, math.tau)) <= math.radians(cone_deg):
+                        aiming_at_me = True
             hp, max_hp = mech.get("hp"), mech.get("max_hp")
             wounded_cut = 0.60 if self.is_finals else 0.50
             wounded = hp is not None and max_hp is not None and hp <= wounded_cut * max_hp
-            if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
+            if not (recent or aiming_at_me or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
-            if under_fire and not recent and distance > self.near_range and not (hp is not None and hp <= laser_damage):
+            if under_fire and not (recent or aiming_at_me) and distance > self.near_range and not (hp is not None and hp <= laser_damage):
                 continue
-            if now >= LATE_T and not recent and distance > self.near_range:
+            if now >= LATE_T and not (recent or aiming_at_me) and distance > self.near_range:
                 continue
             if mech_id == self.target_id:
                 current = mech
             eff_hp = self._eff_hp(mech, has_laser)
-            if eff_hp is None:
+            if USE_SHOOT_BACK:
+                rank = (not active_hit, not aiming_at_me, eff_hp if eff_hp is not None else math.inf, distance)
+            elif eff_hp is None:
                 rank = (math.inf, 0, distance - (1.0 if recent else 0.0))
             else:
                 rank = (eff_hp, not recent, distance)
@@ -695,17 +743,23 @@ class Bot:
                 best, best_rank = mech, rank
 
         if current is not None and best is not None:
-            cur_eff = self._eff_hp(current, has_laser)
-            best_eff = self._eff_hp(best, has_laser)
-            if cur_eff is None or best_eff is None or best_eff >= 0.6 * cur_eff:
-                best = current
+            best_hit = self.last_hits.get(best["id"])
+            cur_hit = self.last_hits.get(current["id"])
+            urgent_switch = (USE_SHOOT_BACK
+                             and best_hit is not None and now - best_hit[0] <= 1.0
+                             and (cur_hit is None or now - cur_hit[0] > 3.0))
+            if not urgent_switch:
+                cur_eff = self._eff_hp(current, has_laser)
+                best_eff = self._eff_hp(best, has_laser)
+                if cur_eff is None or best_eff is None or best_eff >= 0.6 * cur_eff:
+                    best = current
         self.target_id = best["id"] if best is not None else None
         return best
 
     def _drop_goal(self, obs, healing):
         me, zone, now = obs["self"], obs["zone"], obs["t"]
         healthy = me["hp"] >= 0.75 * me["max_hp"]
-        max_drop_dist = DROP_HEALTHY_DIST if healthy else 250.0
+        max_drop_dist = DROP_HEALTHY_DIST
         best = None
         best_distance = math.inf
         for drop in obs.get("drops") or []:
@@ -760,8 +814,8 @@ class Bot:
         for cube_id, location in list(self.cubes.items()):
             distance = math.dist(pos[:2], location[:2])
             height = location[2] - pos[2]
-            if abs(height) <= 4 and ((picked_up and distance <= self.cube_radius)
-                                     or (cube_id not in visible and distance <= 4)):
+            if (abs(height) <= 4 and ((picked_up and distance <= self.cube_radius)
+                                      or (cube_id not in visible and distance <= 4))) or (cube_id not in visible and self._in_view_xy(me, location[:2], location[2])):
                 del self.cubes[cube_id]
                 continue
             reach = max_distance
@@ -793,7 +847,7 @@ class Bot:
         visible = {p["id"]: p for p in obs.get("pickups") or []}
         self.pickups.update(visible)
         for pickup_id, pickup in list(self.pickups.items()):
-            if pickup_id not in visible and math.dist(xy, pickup["pos"][:2]) <= 6:
+            if pickup_id not in visible and (math.dist(xy, pickup["pos"][:2]) <= 6 or self._in_view_xy(me, pickup["pos"][:2], pickup["pos"][2])):
                 del self.pickups[pickup_id]
         for event in obs.get("events") or []:
             if event.get("type") in ("took", "take_failed"):
@@ -811,8 +865,8 @@ class Bot:
 
         state = "zone"
         outside = not me["in_zone"]
-        boost = outside
-        jump = obs["tick"] % 40 == 0
+        boost = outside and (me.get("grounded", True) or not USE_NO_AUTOJUMP) and (me.get("energy", 0) >= 15 or not USE_NO_AUTOJUMP)
+        jump = False if USE_NO_AUTOJUMP else (obs["tick"] % 40 == 0)
         hunt_id = None
         hunt_pickup = None
 
@@ -845,8 +899,9 @@ class Bot:
                     if not (kind == "laser" and dz <= ROOF_LASER_MAX_DZ
                             and me.get("energy", 0) >= max(60.0, dz / 0.6 + 10.0) and not enemy_close):
                         continue
+                shot_recently = any(0 <= aid < 16 and aid != me["id"] and now - ht <= 5.0 for aid, (ht, _) in self.last_hits.items())
                 if kind == "laser":
-                    max_hunt_dist = 250.0 if now < 90.0 else 130.0
+                    max_hunt_dist = 100.0 if shot_recently else (250.0 if now < 90.0 else 130.0)
                     time_ok = now < LATE_T
                 else:
                     max_hunt_dist = 250.0
@@ -884,7 +939,7 @@ class Bot:
             distance = math.hypot(dx, dy)
             act.update(move=[0.0, 0.0] if holding_drop else [dx / distance, dy / distance],
                        aim=[yaw, 0.0], boost=not holding_drop and me["energy"] >= 30 and distance > 30,
-                       jump=not holding_drop and obs["tick"] % 40 == 0)
+                       jump=False if USE_NO_AUTOJUMP else (not holding_drop and obs["tick"] % 40 == 0))
             return f"drop-hold {drop['progress']:.1f}/{drop['capture_s']:g}s" if holding_drop else "drop-walk"
         elif hunt_id is not None:
             best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
@@ -1308,7 +1363,7 @@ class Bot:
         if math.hypot(move[0], move[1]) <= 0.3:
             return
 
-        if now >= self.unstick_until and not charging:
+        if now >= self.unstick_until and not charging and now - self.last_dodge_t > 0.5:
             oldest = self.pos_history[0]
             if now - oldest[0] >= 0.45 and math.hypot(x - oldest[1], y - oldest[2]) < 1.5:
                 if now - self.unstick_started <= 4.0:
@@ -1326,7 +1381,7 @@ class Bot:
             c, s = math.cos(ang), math.sin(ang)
             mx, my = move
             act["move"] = [mx * c - my * s, mx * s + my * c]
-            if now - self.unstick_started <= 0.5 and me.get("energy", 0) >= 60:
+            if now - self.unstick_started <= 0.5 and self.unstick_streak >= 2 and me.get("energy", 0) >= 60:
                 act["jump"] = bool(me.get("grounded", False))
                 act["boost"] = True
 
@@ -1344,6 +1399,21 @@ class Bot:
             if dist == "near":
                 if self.last_near_sound is None or heard >= self.last_near_sound[0]:
                     self.last_near_sound = (heard, bearing)
+
+    def _in_view_xy(self, me, xy, z=None):
+        mx, my, mz = me["pos"]
+        dist = math.dist((mx, my), xy)
+        if dist <= self.near_range - 2.0:
+            return not self._building_blocked((mx, my, self._muzzle_z(me)), (xy[0], xy[1], (z if z is not None else mz) + 1.0))
+        if dist > 185.0:
+            return False
+        actual = me.get("aim") or [None]
+        if actual[0] is None:
+            return False
+        yaw = math.atan2(xy[1] - my, xy[0] - mx)
+        if abs(math.remainder(yaw - actual[0], math.tau)) > math.radians(52.0):
+            return False
+        return not self._building_blocked((mx, my, self._muzzle_z(me)), (xy[0], xy[1], (z if z is not None else mz) + 1.0))
 
     def _face_bearing(self, mechs, pos, now):
         if self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5:
@@ -1410,6 +1480,7 @@ class Bot:
                 if tid not in self.killed:
                     new_kills += 1
                 self.killed.add(tid)
+                self.last_hits.pop(tid, None)
                 spot = self.mech_seen.get(tid)
                 if spot is not None:
                     self.kill_spots.append((now, spot))
@@ -1445,26 +1516,63 @@ class Bot:
         target = self._choose_target(mechs, me["pos"], now, weapons, me.get("cubes", 0))
         finishing = (target is not None and target.get("hp") is not None and target.get("max_hp")
                      and target["hp"] <= 0.3 * target["max_hp"] and target["hp"] < me["hp"])
+        if finishing:
+            self.healing = False
         healing = not finishing and self._heal(obs, act)
         drop = self._drop_goal(obs, healing)
         if healing:
-            if target is not None:
+            heal_charging = False
+            fight_tgt = None
+            if USE_HEAL_FIX:
+                recent_attackers = [
+                    (self.last_hits[m["id"]][0], m) for m in mechs
+                    if m.get("kind") == "mech" and m.get("id") in self.last_hits
+                    and m.get("id") not in self.killed and m.get("pos")
+                    and now - self.last_hits[m["id"]][0] <= 3.0
+                ]
+                if recent_attackers:
+                    fight_tgt = max(recent_attackers, key=lambda x: x[0])[1]
+            elif target is not None:
                 hit = self.last_hits.get(target["id"])
                 if hit is not None and now - hit[0] <= HEAL_FIGHTBACK_S:
-                    move, boost = act["move"], act.get("boost")
-                    self._fight(me, weapons, target, act, mechs)
-                    act.update(move=move, boost=boost)
+                    fight_tgt = target
+            if fight_tgt is not None:
+                move, boost = act["move"], act.get("boost")
+                heal_charging = self._fight(me, weapons, fight_tgt, act, mechs)
+                act.update(move=move, boost=boost)
+                if not USE_HEAL_FIX:
                     for i, weapon in enumerate(weapons[:2]):
                         if weapon and weapon["kind"] == "laser" and not (weapon.get("charge") or 0) > 0:
                             act["fire"][i] = False
+                    heal_charging = False
             else:
                 self._maybe_early_reload(weapons, act)
+            if USE_HEAL_FIX:
+                z = obs["zone"]
+                d_next = math.dist(me["pos"][:2], z["next_center"])
+                excess = d_next - max(z["next_radius"] - 10.0, 2.0)
+                secs_left = (z.get("shrink_end") or now) - now
+                speed = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
+                if excess > 0 and secs_left > 0 and excess / speed > 0.6 * secs_left and d_next > 1e-6:
+                    act["move"] = [(z["next_center"][0] - me["pos"][0]) / d_next,
+                                   (z["next_center"][1] - me["pos"][1]) / d_next]
+                    act["boost"] = me.get("energy", 0) >= 30 and not heal_charging
             dodge_vec, dodge_boost = self._projectile_dodge(obs)
             if dodge_vec is not None:
                 act["move"] = dodge_vec
-                if dodge_boost:
+                if dodge_boost and not heal_charging:
                     act["boost"] = True
-            self._apply_unstick(obs, act, charging=False)
+                self.last_dodge_t = now
+            elif USE_HEAL_FIX:
+                l_vec, l_boost = self._laser_sidestep(obs, heal_charging)
+                if l_vec is not None:
+                    act["move"] = l_vec
+                    if l_boost:
+                        act["boost"] = True
+                    self.last_dodge_t = now
+            if USE_NO_AUTOJUMP and not me.get("grounded", True):
+                act["boost"] = False
+            self._apply_unstick(obs, act, charging=heal_charging)
             return act
 
         movement = self._movement(obs, weapons, act, drop)
@@ -1493,16 +1601,16 @@ class Bot:
                         act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
                         pushing = True
                         state += " push"
-                elif movement in ("zone", "drop-walk"):
+                elif movement in ("zone", "drop-walk", "laser hunt"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
-                 if aid != target["id"] and now - t_hit <= 2.5),
+                 if 0 <= aid < 16 and aid != me["id"] and aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and escape is None and me.get("in_zone", True) and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
@@ -1551,15 +1659,53 @@ class Bot:
                                 act["boost"] = me.get("energy", 0) >= 30 and d > 10 and not charging
                                 state += " cover"
         else:
-            if self._shoot_drone(obs, weapons, act):
+            unseen_hit = None
+            if USE_SHOOT_BACK:
+                unseen_hit = max(
+                    ((ht, aid, brg) for aid, (ht, brg) in self.last_hits.items()
+                     if 0 <= aid < 16 and aid != me["id"] and aid not in self.killed and now - ht <= 3.0),
+                    default=None,
+                )
+            if unseen_hit is not None:
+                _ht, aid, brg = unseen_hit
+                tr = self.tracks.get(aid)
+                dist_est = None
+                if tr is not None and now - tr[0] <= 5.0:
+                    tx, ty, tz = tr[1]
+                    dist_est = math.dist(me["pos"][:2], (tx, ty))
+                    aim_yaw = math.atan2(ty - me["pos"][1], tx - me["pos"][0])
+                    aim_pitch = math.atan2(tz + self.half_height - self._muzzle_z(me), max(dist_est, 1e-6))
+                    end_pt = (tx, ty, tz + self.half_height)
+                elif brg is not None:
+                    aim_yaw, aim_pitch = brg, 0.0
+                    end_pt = (me["pos"][0] + 60.0 * math.cos(brg), me["pos"][1] + 60.0 * math.sin(brg), self._muzzle_z(me))
+                else:
+                    aim_yaw = aim_pitch = None
+                    end_pt = None
+                if aim_yaw is not None:
+                    act["aim"] = [aim_yaw, aim_pitch]
+                    state = "shoot-back"
+                    if movement in ("zone", "drop-walk", "laser hunt"):
+                        act["move"] = self._rotate_move_safe(act["move"], _strafe_sign(now) * DUEL_STRAFE_RAD,
+                                                             me["pos"][:2], obs["zone"])
+                    actual = me.get("aim") or [None]
+                    muzzle_pos = (me["pos"][0], me["pos"][1], self._muzzle_z(me))
+                    in_gun_range = dist_est is None or dist_est <= self.gun_range
+                    if (in_gun_range and actual[0] is not None
+                            and abs(math.remainder(aim_yaw - actual[0], math.tau)) <= math.radians(5.0)
+                            and not self._building_blocked(muzzle_pos, end_pt)):
+                        for wi, w in enumerate(weapons[:2]):
+                            if w and w["kind"] == "gun" and (w.get("reload") or 0) <= 0 and (w.get("ammo") is None or w["ammo"] > 0):
+                                act["fire"][wi] = True
+                                break
+            elif self._shoot_drone(obs, weapons, act):
                 state = "drone"
             elif self._shoot_beam_origin(obs, weapons, act):
                 state = "beam-ret"
             else:
                 self._maybe_early_reload(weapons, act)
-                # Point 16: break crates when no mech is within 120 m and nobody hit us in 5 s.
-                near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
-                                   and math.dist(m["pos"], me["pos"]) <= 120.0 for m in mechs)
+                # Point 16: break crates when no mech is visible and nobody hit us in 5 s.
+                near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed for m in mechs)
                                or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5))
                 if USE_MORE_CUBES and not near_threat and self._shoot_crate(obs, weapons, act):
                     state = "crate"
@@ -1608,6 +1754,7 @@ class Bot:
                     act["move"] = dodge_vec
                     if dodge_boost and not charging:
                         act["boost"] = True
+                    self.last_dodge_t = now
                     state += " dodge"
                 elif not holding_drop and not finishing:
                     l_vec, l_boost = self._laser_sidestep(obs, charging)
@@ -1615,10 +1762,13 @@ class Bot:
                         act["move"] = l_vec
                         if l_boost:
                             act["boost"] = True
+                        self.last_dodge_t = now
                         state += " ldodge"
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
+        if USE_NO_AUTOJUMP and movement != "roof-climb" and not act.get("jump") and not me.get("grounded", True):
+            act["boost"] = False
         # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
         mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
         label = (f"{mode_tag}{movement} {state} hp{me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"
