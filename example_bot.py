@@ -30,17 +30,6 @@ def _stat(stats, key, default):
     return default if value is None else value
 
 
-def _lead_aim(muzzle, target, speed):
-    tx, ty, tz = target["pos"]
-    dx, dy, dz = tx - muzzle[0], ty - muzzle[1], tz + 4.5 - muzzle[2]
-    vx, vy, vz = target.get("vel") or (0.0, 0.0, 0.0)
-    lx, ly, lz = dx, dy, dz
-    for _ in range(3):
-        flight_time = math.hypot(lx, ly, lz) / speed
-        lx, ly, lz = dx + vx * flight_time, dy + vy * flight_time, dz + vz * flight_time
-    return [math.atan2(ly, lx), math.atan2(lz, math.hypot(lx, ly))]
-
-
 def _load_cover(hello):
     with (Path(hello["map"]["dir"]) / "v2" / "world.json").open(encoding="utf-8") as source:
         prisms = json.load(source)["prisms"]
@@ -95,6 +84,7 @@ class Bot:
         self.damage_per_cube = _stat(cubes, "damage_per_cube", 0.04)
         gun = (config.get("weapons") or {}).get("gun") or {}
         self.gun_speed = _stat(gun, "speed", 252)
+        self.spread = _stat(gun, "spread_deg", 0.6)
         self.gun_range = _stat(gun, "range", 230)
         self.laser = (config.get("weapons") or {}).get("laser") or {}
         self.lightning = (config.get("weapons") or {}).get("lightning") or {}
@@ -103,6 +93,8 @@ class Bot:
         crates = config.get("crates") or {}
         self.crate_radius = _stat(crates, "radius", 1.4)
         self.crate_height = _stat(crates, "height", 2.4)
+        self.half_height = 0.5 * _stat(config.get("mech") or {}, "height", 9)
+        self.tracks = {}
         self.size_per_cube = _stat(cubes, "size_per_cube", 0.05)
         self.laser_released = False
         self.laser_target = None      # id of the mech the laser was last charged at
@@ -418,19 +410,56 @@ class Bot:
                    boost=boost, jump=obs["tick"] % 40 == 0)
         return state
 
-    def _hit_gate(self, target, distance, low, high):
-        """Degrees of yaw error that still put the shot on the target's body (with a margin)."""
-        radius = self.mech_radius * (1 + self.size_per_cube * (target.get("cubes") or 0))
-        return min(high, max(low, math.degrees(math.atan2(0.8 * radius, max(distance, 1.0)))))
+    def _track(self, mechs, now):
+        for m in mechs:
+            if m.get("kind") != "mech" or m.get("id") is None or not m.get("pos"):
+                continue
+            pos, vel = m["pos"], m.get("vel")
+            prev = self.tracks.get(m["id"])
+            if prev and 0 < now - prev[0] <= 0.21:
+                delta = [(p - q) / (now - prev[0]) for p, q in zip(pos, prev[1])]
+                vel = [0.85 * v + 0.15 * d for v, d in zip(vel, delta)] if vel else delta
+            self.tracks[m["id"]] = (now, pos, vel or (0, 0, 0))
 
-    def _laser_aim(self, me, target):
-        """Aim where the target will be when the beam goes out (about one decision from now)."""
-        x, y, z = me["pos"]
-        muzzle_z = z + _stat(me.get("stats") or {}, "muzzle_height", self.muzzle_height)
-        vx, vy, _ = target.get("vel") or (0.0, 0.0, 0.0)
-        tx, ty = target["pos"][0] + vx * LASER_LEAD_S, target["pos"][1] + vy * LASER_LEAD_S
-        return [math.atan2(ty - y, tx - x),
-                math.atan2(target["pos"][2] + 4.5 - muzzle_z, math.hypot(tx - x, ty - y))]
+    def _scale(self, mech):
+        return 1 + self.size_per_cube * (mech.get("cubes") or 0)
+
+    def _lead_aim(self, me, target, delay, speed=None):
+        vel = self.tracks[target["id"]][2]
+        own = me.get("vel") or (0, 0, 0)
+        stats = me.get("stats") or {}
+        dx, dy, dz = (p - q + (v - u) * delay for p, q, v, u in zip(target["pos"], me["pos"], vel, own))
+        own_scale = self._scale(me)
+        dz += self.half_height * self._scale(target) - _stat(stats, "muzzle_height", self.muzzle_height * own_scale)
+        offset = _stat(stats, "radius", self.mech_radius * own_scale) + 0.5
+        if speed is not None:
+            # |d + v*t| = offset + speed*t. Rationalized positive root for sub-projectile targets.
+            vx, vy, vz = vel
+            a = speed * speed - (vx * vx + vy * vy + vz * vz)
+            b = offset * speed - (dx * vx + dy * vy + dz * vz)
+            c = dx * dx + dy * dy + dz * dz - offset * offset
+            if c > 0 and a > 0:
+                flight = c / (math.sqrt(b * b + a * c) + b)
+                dx, dy, dz = dx + vx * flight, dy + vy * flight, dz + vz * flight
+        return [math.atan2(dy, dx), math.atan2(dz, math.hypot(dx, dy))], math.hypot(dx, dy, dz)
+
+    def _on_body(self, actual, aim, distance, target, spread=None):
+        if not actual or None in actual:
+            return False
+        scale = self._scale(target)
+        width = math.atan2(self.mech_radius * scale, distance)
+        projected_height = self.half_height * math.cos(aim[1]) + self.mech_radius * abs(math.sin(aim[1]))
+        height = math.atan2(projected_height * scale, distance)
+        yaw = abs(math.remainder(actual[0] - aim[0], math.tau)) * math.cos(aim[1])
+        pitch = abs(actual[1] - aim[1])
+        if spread is None:
+            gate = min(math.radians(4), 0.8 * width)
+            if self._now - self.laser_full_since >= 0.8:
+                return yaw <= min(2 * gate, width) and pitch <= height
+            return yaw <= gate and pitch <= 0.8 * height
+        # Elliptical approximation to the cylinder silhouette; reserve part of a spread sigma at its edge.
+        gate = min(width, math.radians(12), max(math.radians(0.1), width - 0.25 * math.radians(spread)))
+        return math.hypot(yaw, pitch * width / height) <= gate
 
     def _laser_ready(self, me, weapon, target):
         """Full charge and the torso (as measured now) is on the target's body."""
@@ -442,18 +471,8 @@ class Bot:
             return False
         if self.laser_full_since is None:
             self.laser_full_since = self._now
-        actual = me.get("aim") or [None]
-        if actual[0] is None:
-            return False
-        x, y, _ = me["pos"]
-        distance = math.dist(me["pos"], target["pos"])
-        gate = self._hit_gate(target, distance, 0.35, 4.0)
-        if self._now - self.laser_full_since >= 0.8:
-            # Been waiting a while: loosen up to the full body width (never wider), before the game auto-fires.
-            radius = self.mech_radius * (1 + self.size_per_cube * (target.get("cubes") or 0))
-            gate = max(gate, min(2 * gate, math.degrees(math.atan2(radius, max(distance, 1.0)))))
-        yaw = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
-        return abs(math.remainder(yaw - actual[0], math.tau)) <= math.radians(gate)
+        aim, distance = self._lead_aim(me, target, 0.05)
+        return self._on_body(me.get("aim"), aim, distance, target)
 
     def _fight(self, me, weapons, target, act):
         x, y, z = me["pos"]
@@ -484,9 +503,12 @@ class Bot:
             kind = weapon["kind"]
             stats = weapon.get("stats") or {}
             if kind == "gun":
-                aim = _lead_aim(muzzle, target, _stat(stats, "speed", self.gun_speed))
-                act["fire"][i] = (distance <= _stat(stats, "range", self.gun_range)
-                                  and aligned(aim[0], self._hit_gate(target, distance, 0.6, 3.0)))
+                delay = 0.1 if (weapon.get("cooldown") or 0) > 0.05 else 0.05
+                aim, intercept_range = self._lead_aim(me, target, delay, _stat(stats, "speed", self.gun_speed))
+                barrel = _stat(me.get("stats") or {}, "radius", self.mech_radius * self._scale(me)) + 0.5
+                act["fire"][i] = (intercept_range - barrel <= _stat(stats, "range", self.gun_range)
+                                  and self._on_body(actual, aim, intercept_range, target,
+                                                    _stat(stats, "spread_deg", self.spread)))
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 if distance <= reach and (weapon.get("cooldown", 0) <= 0 or (weapon.get("charge") or 0) > 0):
@@ -496,7 +518,7 @@ class Bot:
                     near_full = (weapon.get("charge") or 0) >= 0.93 * full_charge - 0.1
                     if near_full or not gun_useful:
                         use_direct = True
-                        direct = self._laser_aim(me, target)
+                        direct, _ = self._lead_aim(me, target, LASER_LEAD_S)
                     charging = not self._laser_ready(me, weapon, target)
                     act["fire"][i] = charging
                     self.laser_released = not charging
@@ -586,7 +608,7 @@ class Bot:
                 key=lambda m: math.dist(m["pos"], me["pos"]), default=None)
             if pick is None:
                 return
-            aim = self._laser_aim(me, pick)
+            aim, _ = self._lead_aim(me, pick, LASER_LEAD_S)
             actual = me.get("aim") or [None]
             if actual[0] is not None and abs(math.remainder(aim[0] - actual[0], math.tau)) > math.radians(30):
                 return  # a big turn at half speed isn't worth it
@@ -626,6 +648,7 @@ class Bot:
         me = obs["self"]
         weapons = me.get("weapons") or []
         mechs = obs.get("mechs") or []
+        self._track(mechs, now)
         act: mf.Action = {"tick": obs["tick"], "fire": [False, False]}
         choices = (obs.get("offer") or {}).get("choices") or []
         if choices:

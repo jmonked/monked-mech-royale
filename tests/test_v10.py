@@ -5,12 +5,17 @@ Run from the repo root:  python tests/test_v10.py
 import gzip
 import json
 import math
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 KIT = ROOT.parent / "buildathon" / "kit" / "mechfight-kit"
+if not KIT.is_dir():  # Linked worktrees share the main checkout's sibling kit.
+    common = subprocess.check_output(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                     cwd=ROOT, text=True).strip()
+    KIT = Path(common).parent.parent / "buildathon" / "kit" / "mechfight-kit"
 
 import example_bot  # noqa: E402
 
@@ -539,6 +544,74 @@ def m4_far_random_cube_still_ignored():
     b = bot()
     a = b.act(loot_obs(40.0))
     assert a["move"][0] < 0.9, a["move"]
+# v24: trace the commanded ray to the target's x-plane, independently of the intercept solver.
+def gun_impact(distance, target_vel, own_vel, delay, target_cubes=0, own_cubes=0, z=0):
+    target = mech(5, distance, 0, hp=500, vel=target_vel)
+    target.update(pos=[distance, 0, z], cubes=target_cubes)
+    obs = make_obs(mechs=[target], weapons=[gun(cooldown=delay), None], cubes=own_cubes)
+    obs["self"]["vel"] = own_vel
+    b = bot()
+    yaw, pitch = b.act(obs)["aim"]
+    obs["self"]["aim"] = [yaw, pitch]
+    assert b.act(obs)["fire"][0]
+    ray = (math.cos(pitch)*math.cos(yaw), math.cos(pitch)*math.sin(yaw), math.sin(pitch))
+    scale = 1 + 0.05 * own_cubes
+    origin = [v * delay + (2.5 * scale + 0.5) * r for v, r in zip(own_vel, ray)]
+    origin[2] += 7 * scale
+    flight = (distance + target_vel[0] * delay - origin[0]) / (252 * ray[0] - target_vel[0])
+    impact = [p + 252 * r * flight for p, r in zip(origin, ray)]
+    center = [p + v * (delay + flight) for p, v in zip(target["pos"], target_vel)]
+    center[2] += 4.5 * (1 + 0.05 * target_cubes)
+    assert 0 < 252 * flight <= 230
+    assert math.dist(impact, center) < 1e-7, (impact, center)
+    return pitch
+
+
+@test
+def stationary_cube_scaled_target():
+    gun_impact(80, (0, 0, 0), (0, 0, 0), 0.05, target_cubes=14, own_cubes=4)
+
+
+@test
+def crossing_target_with_moving_shooter():
+    for distance in (50, 150, 220):
+        for delay in (0.05, 0.1):
+            gun_impact(distance, (0, 19.5, 0), (4, -10, 2), delay)
+
+
+@test
+def jumping_target_pitch():
+    assert gun_impact(150, (0, 0, 11), (0, 0, 2), 0.05, z=2) > 0
+
+
+@test
+def gun_rejects_off_body_actual_aim():
+    target = mech(5, 150, 0, hp=500)
+    pitch = math.atan2(-2.5, 150)
+    for aim in [(0, pitch + deg(2)), (deg(1.1), pitch)]:
+        assert not bot().act(make_obs(mechs=[target], weapons=[gun(), None], aim=aim))["fire"][0]
+
+
+@test
+def laser_requires_pitch_to_release():
+    obs = make_obs(mechs=[mech(5, 100, 0, hp=500)], weapons=[gun(), laser(charge=0.70)], aim=(0, deg(5)))
+    b = bot()
+    act = b.act(obs)
+    assert act["fire"][LASER]
+    obs["self"]["aim"] = act["aim"]
+    assert not b.act(obs)["fire"][LASER]
+
+
+@test
+def position_history_refines_both_leads():
+    for weapon in (gun(), laser(charge=0.75)):
+        b = bot()
+        for t, y in [(20, -1), (20.1, 0)]:
+            obs = make_obs(t=t, mechs=[mech(5, 100, y, hp=500)], weapons=[weapon, None])
+            tracked = b.act(obs)["aim"][0]
+        assert tracked > bot().act(obs)["aim"][0]
+        obs["t"] += 1  # Reacquisition drops the old position difference.
+        assert b.act(obs)["aim"][0] == 0
 
 
 def run():
