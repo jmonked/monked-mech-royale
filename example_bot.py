@@ -9,6 +9,9 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+SCAN_UNTIL = 120.0      # without a laser, look all the way around every SCAN_EVERY s until then
+SCAN_EVERY = 10.0
+SCAN_S = 1.8            # one full turn (torso turns 4 rad/s)
 LATE_HUNT_RANGE = 80.0  # after the opening, still fetch a laser/lightning this close when not fighting
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
@@ -609,6 +612,12 @@ class Bot:
             if bearing is not None:
                 state = "face"
                 act["aim"] = [bearing, 0.0]
+            elif now < SCAN_UNTIL and not any(w and w.get("kind") == "laser" for w in weapons):
+                # No laser yet and nothing to watch: sweep the 120 deg vision wedge round to spot loot.
+                phase = now % SCAN_EVERY
+                if phase < SCAN_S:
+                    state = "scan"
+                    act["aim"] = [act["aim"][0] + math.tau * phase / SCAN_S, 0.0]
         mf.draw.label(f"{movement} {state}" + (" chg" if charging else ""))
         return act
 

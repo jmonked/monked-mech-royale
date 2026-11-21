@@ -522,6 +522,25 @@ def k8_late_hunt_keeps_cube_range():
     assert a["move"][1] < -0.9, a["move"]
 
 
+@test
+def k9_scan_for_loot_when_unarmed_and_quiet():
+    b = bot()
+    o = make_obs(t=0.9, weapons=[gun(), None]); o["zone"]["next_center"] = [100, 0]
+    a = b.act(o)
+    assert abs(math.remainder(a["aim"][0] - math.tau * 0.9 / 1.8, math.tau)) < 1e-6, a["aim"]
+
+
+@test
+def k10_no_scan_with_laser_or_when_threatened():
+    b = bot()
+    o = make_obs(t=0.9, weapons=[gun(), laser()]); o["zone"]["next_center"] = [100, 0]
+    assert abs(b.act(o)["aim"][0]) < 1e-6
+    b = bot()
+    o = make_obs(t=0.9, weapons=[gun(), None], mechs=[mech(5, 0, 150)]); o["zone"]["next_center"] = [100, 0]
+    a = b.act(o)
+    assert abs(a["aim"][0] - math.pi / 2) < 1e-6, a["aim"]
+
+
 def run():
     failed = 0
     for fn in TESTS:
