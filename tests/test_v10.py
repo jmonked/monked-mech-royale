@@ -541,6 +541,37 @@ def m4_far_random_cube_still_ignored():
     assert a["move"][0] < 0.9, a["move"]
 
 
+# ----------------------------------------------------------------- v27: crate hardening
+@test
+def n1_blocked_crate_abandoned_after_misses():
+    b = bot()
+    for k in range(7):
+        o = make_obs(t=30.0 + 0.1 * k, weapons=[gun(), None], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+        b.act(o)
+    o = make_obs(t=31.0, weapons=[gun(), None], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 20, 0)]
+    assert b.act(o)["fire"][0] is False
+
+
+@test
+def n2_hits_keep_us_shooting():
+    b = bot()
+    for k in range(8):
+        o = make_obs(t=30.0 + 0.1 * k, weapons=[gun(), None], aim=(0.0, 0.0),
+                     events=[{"type": "hit", "target": 1001, "amount": 45, "weapon": "gun"}] if k else [])
+        o["crates"] = [crate(1001, 20, 0)]
+        a = b.act(o)
+    assert a["fire"][0] is True
+
+
+@test
+def n3_too_close_or_outside_zone_skipped():
+    b = bot()
+    o = make_obs(t=30.0, weapons=[gun(), None], aim=(0.0, 0.0)); o["crates"] = [crate(1001, 5, 0)]
+    assert b.act(o)["fire"][0] is False
+    o = make_obs(t=30.0, weapons=[gun(), None], aim=(0.0, 0.0), in_zone=False); o["crates"] = [crate(1001, 20, 0)]
+    assert b.act(o)["fire"][0] is False
+
+
 def run():
     failed = 0
     for fn in TESTS:
