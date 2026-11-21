@@ -1,14 +1,16 @@
-"""v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
-more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
+"""v35: v34 plus a ground navigation grid for loot and zone travel."""
+import heapq
 import json
 import math
+import time
 import traceback
 from pathlib import Path
 
 import mechfight as mf
 
 
-# --- v34 switches: set False to turn a change off ---
+# --- Feature switches ---
+USE_NAV_GRID = True
 USE_RELOAD_COVER = True      # point 14: step behind cover while gun reloads and laser is busy
 USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holder without a laser
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
@@ -147,15 +149,20 @@ def _crosses_ring(start, end, ring):
     return bool(_ring_intervals(x, y, end[0] - x, end[1] - y, ring))
 
 
-def _load_prisms(hello):
+def _load_world(hello):
+    with (Path(hello["map"]["dir"]) / "v2" / "world.json").open(encoding="utf-8") as source:
+        return json.load(source)
+
+
+def _load_prisms(hello, world=None):
     """Return (cover_buildings, los_buildings, roofs) with courtyard holes respected
     and climb points filtered to open ground outside every building."""
-    with (Path(hello["map"]["dir"]) / "v2" / "world.json").open(encoding="utf-8") as source:
-        prisms = json.load(source)["prisms"]
+    if world is None:
+        world = _load_world(hello)
     cover_buildings = []
     los_buildings = []
     raw_roofs = []
-    for idx, prism in enumerate(prisms):
+    for idx, prism in enumerate(world["prisms"]):
         if prism["kind"] not in ("building", "stadium"):
             continue
         flat = prism["ring"]
@@ -210,6 +217,272 @@ def _point_to_segment_dist_sq(px, py, ax, ay, bx, by):
     t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg_sq))
     qx, qy = ax + t * dx, ay + t * dy
     return (px - qx) ** 2 + (py - qy) ** 2
+
+
+class _NavGrid:
+    CELL = 4
+    SIGHT_CELL = 2
+    REPLAN_S = 1.0
+    DRIFT_SQ = 8.0 ** 2
+    MAX_EXPANSIONS = 1024
+    SEARCH_S = 0.0035
+    STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+             (1, 1, math.sqrt(2)), (1, -1, math.sqrt(2)),
+             (-1, 1, math.sqrt(2)), (-1, -1, math.sqrt(2)))
+
+    def __init__(self, bounds, buildings, radius, step_up):
+        self.x0 = math.floor(bounds["minX"] / self.CELL) * self.CELL
+        self.y0 = math.floor(bounds["minY"] / self.CELL) * self.CELL
+        self.nx = math.ceil((bounds["maxX"] - self.x0) / self.CELL)
+        self.ny = math.ceil((bounds["maxY"] - self.y0) / self.CELL)
+        # The 2 m raster shares the 4 m node centres and checks short links and sight lines.
+        self.fx = 2 * self.nx + 1
+        self.fy = 2 * self.ny + 1
+        self.solid = bytearray(self.fx * self.fy)
+        self.links = bytearray(self.nx * self.ny)
+        self.open = bytearray(self.nx * self.ny)
+        self.paths = {}
+        self.last_leg = None
+        for _, _, ring, holes, base, top in buildings:
+            if top - base > step_up:
+                self._rasterize(ring, holes, radius)
+
+        for j in range(self.ny):
+            y = self.y0 + j * self.CELL + self.CELL / 2
+            for i in range(self.nx):
+                x = self.x0 + i * self.CELL + self.CELL / 2
+                f = (2 * j + 1) * self.fx + 2 * i + 1
+                if (bounds["minX"] <= x <= bounds["maxX"] and bounds["minY"] <= y <= bounds["maxY"]
+                        and not self.solid[f]):
+                    self.open[j * self.nx + i] = 1
+
+        self.steps = tuple((1 << k, dx, dy, dy * self.nx + dx, cost)
+                           for k, (dx, dy, cost) in enumerate(self.STEPS))
+        for node, free in enumerate(self.open):
+            if not free:
+                continue
+            j, i = divmod(node, self.nx)
+            f = (2 * j + 1) * self.fx + 2 * i + 1
+            for bit, dx, dy, offset, _ in self.steps:
+                if not (0 <= i + dx < self.nx and 0 <= j + dy < self.ny and self.open[node + offset]):
+                    continue
+                sy = dy * self.fx
+                mid = f + dx + sy
+                if self.solid[mid]:
+                    continue
+                if dx and dy and any(self.solid[k] for k in (f + dx, f + sy, mid + dx, mid + sy)):
+                    continue
+                self.links[node] |= bit
+
+    def _rasterize(self, ring, holes, radius):
+        """Fill solid scanlines, then inflate every exterior and courtyard edge."""
+        step, x0, y0, nx, ny = self.SIGHT_CELL, self.x0, self.y0, self.fx, self.fy
+        edges = [(a, b) for boundary in (ring, *holes) for a, b in zip(boundary[-1:] + boundary[:-1], boundary)]
+        ys = [p[1] for p in ring]
+        for j in range(max(0, math.ceil((min(ys) - y0) / step)), min(ny, math.ceil((max(ys) - y0) / step))):
+            y = y0 + j * step
+            xs = sorted(ax + (y - ay) * (bx - ax) / (by - ay)
+                        for (ax, ay), (bx, by) in edges if (ay > y) != (by > y))
+            for lo, hi in zip(xs[::2], xs[1::2]):
+                first = max(0, math.ceil((lo - x0) / step))
+                end = min(nx, math.ceil((hi - x0) / step))
+                if first < end:
+                    self.solid[j * nx + first:j * nx + end] = b"\x02" * (end - first)
+
+        radius_sq = radius * radius
+        for (ax, ay), (bx, by) in edges:
+            i0 = max(0, math.ceil((min(ax, bx) - radius - x0) / step))
+            i1 = min(nx - 1, math.floor((max(ax, bx) + radius - x0) / step))
+            j0 = max(0, math.ceil((min(ay, by) - radius - y0) / step))
+            j1 = min(ny - 1, math.floor((max(ay, by) + radius - y0) / step))
+            for j in range(j0, j1 + 1):
+                y = y0 + j * step
+                for i in range(i0, i1 + 1):
+                    idx = j * nx + i
+                    if not self.solid[idx] and _point_to_segment_dist_sq(x0 + i * step, y, ax, ay, bx, by) <= radius_sq:
+                        self.solid[idx] = 1
+
+    def _point(self, node):
+        j, i = divmod(node, self.nx)
+        return (self.x0 + (i + 0.5) * self.CELL, self.y0 + (j + 0.5) * self.CELL)
+
+    def _clear(self, start, end):
+        """Supercover line of sight. A mech on the margin may first step out of it."""
+        step = self.SIGHT_CELL
+        ax, ay = (start[0] - self.x0) / step + 0.5, (start[1] - self.y0) / step + 0.5
+        bx, by = (end[0] - self.x0) / step + 0.5, (end[1] - self.y0) / step + 0.5
+        i, j, ei, ej = math.floor(ax), math.floor(ay), math.floor(bx), math.floor(by)
+        nx, ny, solid = self.fx, self.fy, self.solid
+        if not (0 <= i < nx and 0 <= j < ny and 0 <= ei < nx and 0 <= ej < ny):
+            return False
+        node, target = j * nx + i, ej * nx + ei
+        if solid[node] == 2 or solid[target]:
+            return False
+
+        dx, dy = bx - ax, by - ay
+        sx, sy = (1 if dx > 0 else -1), (1 if dy > 0 else -1)
+        tx_step = abs(1 / dx) if dx else math.inf
+        ty_step = abs(1 / dy) if dy else math.inf
+        tx = ((i + 1 - ax) if dx > 0 else (ax - i)) * tx_step if i != ei else math.inf
+        ty = ((j + 1 - ay) if dy > 0 else (ay - j)) * ty_step if j != ej else math.inf
+        row_step = sy * nx
+        escaping = bool(solid[node])
+        escape_t = 4.0 / (step * math.hypot(dx, dy)) if escaping else 0.0
+        while node != target:
+            if tx < ty:
+                i += sx
+                node += sx
+                t, tx = tx, tx + tx_step if i != ei else math.inf
+            elif ty < tx:
+                j += sy
+                node += row_step
+                t, ty = ty, ty + ty_step if j != ej else math.inf
+            else:
+                t = tx
+                side = max(solid[node + sx], solid[node + row_step])
+                if side and (side == 2 or not escaping or t > escape_t):
+                    return False
+                i += sx
+                j += sy
+                node += sx + row_step
+                tx = tx + tx_step if i != ei else math.inf
+                ty = ty + ty_step if j != ej else math.inf
+            if solid[node]:
+                if solid[node] == 2 or not escaping or t > escape_t:
+                    return False
+            else:
+                escaping = False
+        return True
+
+    @staticmethod
+    def zone_leg(start, end, circle):
+        cx, cy, radius_sq = circle
+        if (end[0] - cx) ** 2 + (end[1] - cy) ** 2 <= radius_sq:
+            return True
+        # An outside leg may approach the circle but should never cut through and back out.
+        return _point_to_segment_dist_sq(cx, cy, *start, *end) > radius_sq
+
+    def _nearby(self, point, cells):
+        i = math.floor((point[0] - self.x0) / self.CELL)
+        j = math.floor((point[1] - self.y0) / self.CELL)
+        nearby = []
+        for y in range(max(0, j - cells), min(self.ny, j + cells + 1)):
+            for x in range(max(0, i - cells), min(self.nx, i + cells + 1)):
+                node = y * self.nx + x
+                if self.open[node]:
+                    xy = self._point(node)
+                    nearby.append((math.dist(point, xy), node, xy))
+        nearby.sort()
+        return nearby
+
+    def _search(self, start, goal, reach, circle, deadline):
+        starts = [(d / self.CELL, node) for d, node, xy in self._nearby(start, 2)
+                  if d <= 8 and self._clear(start, xy)]
+        if not starts:
+            return None
+        cx, cy, radius_sq = circle
+        nearby = [(d, node, xy) for d, node, xy in self._nearby(goal, min(6, 1 + math.ceil(reach / self.CELL)))
+                  if (xy[0] - cx) ** 2 + (xy[1] - cy) ** 2 <= radius_sq]
+        goals = {node: goal for d, node, xy in nearby[:12] if d <= 9 and self._clear(xy, goal)}
+        if not goals:
+            goals = {node: None for d, node, xy in nearby[:8] if d <= reach}
+        if not goals:
+            return None
+
+        gx, gy = (goal[0] - self.x0) / self.CELL - 0.5, (goal[1] - self.y0) / self.CELL - 0.5
+        zx, zy = (cx - self.x0) / self.CELL - 0.5, (cy - self.y0) / self.CELL - 0.5
+        r_sq = radius_sq / (self.CELL * self.CELL)
+        remaining = self.MAX_EXPANSIONS
+        # Use a permissive search only when the first search proves the circle blocks all routes.
+        for strict in (True, False):
+            queue = []
+            parents = {}
+            costs = {}
+            for distance, node in starts:
+                point = self._point(node)
+                if strict and not self.zone_leg(start, point, circle):
+                    continue
+                j, i = divmod(node, self.nx)
+                heapq.heappush(queue, (distance + math.hypot(i - gx, j - gy), distance, node))
+                parents[node] = None
+                costs[node] = distance
+            while queue:
+                if remaining <= 0 or (remaining % 16 == 0 and time.perf_counter() >= deadline):
+                    return None
+                remaining -= 1
+                _, cost, node = heapq.heappop(queue)
+                if cost != costs[node]:
+                    continue
+                if node in goals:
+                    path = [goals[node]] if goals[node] is not None else []
+                    while node is not None:
+                        path.append(self._point(node))
+                        node = parents[node]
+                    path.reverse()
+                    return path, strict
+                j, i = divmod(node, self.nx)
+                inside = strict and (i - zx) ** 2 + (j - zy) ** 2 <= r_sq
+                links = self.links[node]
+                for bit, dx, dy, offset, step_cost in self.steps:
+                    if not links & bit:
+                        continue
+                    other = node + offset
+                    new_cost = cost + step_cost
+                    if new_cost >= costs.get(other, math.inf):
+                        continue
+                    ni, nj = i + dx, j + dy
+                    if inside and (ni - zx) ** 2 + (nj - zy) ** 2 > r_sq:
+                        continue
+                    costs[other], parents[other] = new_cost, node
+                    # Weight the straight-line estimate to bound work on long, open runs.
+                    estimate = 1.25 * math.hypot(ni - gx, nj - gy)
+                    heapq.heappush(queue, (new_cost + estimate, new_cost, other))
+        return None
+
+    def advancing(self, key, xy, now):
+        if self.last_leg is None:
+            return False
+        previous_key, origin, waypoint, t = self.last_leg
+        return (key == previous_key and now - t <= 0.3
+                and math.dist(xy, waypoint) < math.dist(origin, waypoint) - 0.15)
+
+    def _visible_waypoint(self, start, circle, result, cursor):
+        path, strict = result
+        for i in range(min(cursor + 10, len(path) - 1), cursor - 1, -1):
+            point = path[i]
+            if (not strict or self.zone_leg(start, point, circle)) and self._clear(start, point):
+                return point, i
+        return None
+
+    def waypoint(self, key, start, goal, reach, circle, now):
+        if self.zone_leg(start, goal, circle) and self._clear(start, goal):
+            self.paths.pop(key, None)
+            return goal
+        deadline = time.perf_counter() + self.SEARCH_S
+        previous = self.paths.get(key)
+        waypoint = None
+        if previous is not None:
+            old_goal, origin, last, old_circle, planned, result, cursor = previous
+            drift = _point_to_segment_dist_sq(*start, *origin, *last) > self.DRIFT_SQ
+            if not drift and circle == old_circle and now - planned < self.REPLAN_S and math.dist(goal, old_goal) <= 8:
+                if result is None:
+                    return None
+                waypoint = self._visible_waypoint(start, circle, result, cursor)
+
+        if waypoint is None:
+            old_goal, planned = goal, now
+            result = self._search(start, goal, reach, circle, deadline)
+            if result is not None:
+                waypoint = self._visible_waypoint(start, circle, result, 0)
+            if len(self.paths) >= 16 and key not in self.paths:
+                del self.paths[next(iter(self.paths))]
+        if waypoint is None or time.perf_counter() >= deadline:
+            self.paths[key] = (goal, start, start, circle, now, None, 0)
+            return None
+        point, cursor = waypoint
+        self.paths[key] = (old_goal, start, point, circle, planned, result, cursor)
+        self.last_leg = (key, start, point, now)
+        return point
 
 
 def _strafe_sign(now):
@@ -290,10 +563,21 @@ class Bot:
         self.finals_t = None          # point 8: timestamp when Finals FFA switch tripped
         self._now = 0.0
         self._los_cache = {}
+        self.nav_grid = None
+        self.nav_goal = None
+        world = None
         try:
-            self.buildings, self.los_buildings, self.roofs = _load_prisms(hello)
+            if USE_NAV_GRID:
+                world = _load_world(hello)
+            self.buildings, self.los_buildings, self.roofs = _load_prisms(hello, world)
         except Exception:
             self.buildings, self.los_buildings, self.roofs = [], [], []
+        if world is not None:
+            try:
+                self.nav_grid = _NavGrid(world["bounds"], self.los_buildings, self.mech_radius,
+                                         _stat(config.get("mech") or {}, "step_up", 1.2))
+            except Exception:
+                pass
 
     def _muzzle_z(self, me):
         own_scale = self._scale(me)
@@ -772,14 +1056,60 @@ class Bot:
         for distance, cube_id in sorted(options):
             if cube_id != previous_id or distance <= best - 1:
                 self.cube_progress = (cube_id, distance, now)
+            elif self._nav_advancing(("cube", cube_id), pos[:2], now):
+                self.cube_progress = (cube_id, best, now)
             elif now - since >= 4:
                 self.unreachable.add(cube_id)
                 continue
-            return self.cubes[cube_id], distance
+            return self.cubes[cube_id], distance, cube_id
         self.cube_progress = (None, math.inf, now)
         return None
 
+    def _nav_advancing(self, key, xy, now):
+        try:
+            return self.nav_grid is not None and self.nav_grid.advancing(key, xy, now)
+        except Exception:
+            return False
+
+    def _nav_steer(self, obs, act, nav_goal):
+        try:
+            key, target, reach = nav_goal
+            goal = tuple(target[:2])
+            # Loot on a prism's top keeps the existing jump and jet approach.
+            if key[0] == "laser" and self._point_blocked_2d(*goal, target[2] - 2):
+                return
+            start = tuple(obs["self"]["pos"][:2])
+            zone = obs["zone"]
+            circle = (*zone["next_center"], zone["next_radius"] ** 2)
+            grid = self.nav_grid
+            point = grid.waypoint(key, start, goal, reach, circle, obs["t"])
+            if point is None:
+                return
+            distance = math.dist(start, point)
+            if distance <= 1e-6:
+                if point != goal:
+                    act.update(move=[0.0, 0.0], boost=False)
+                return
+            magnitude = math.hypot(*act["move"])
+            steering = [(point[0] - start[0]) / distance, (point[1] - start[1]) / distance]
+            if point == goal:
+                # Keep the existing strafe if it can also move safely toward the goal.
+                mx, my = act["move"]
+                if mx * steering[0] + my * steering[1] >= magnitude - 1e-6:
+                    return
+                ahead = (start[0] + 6 * mx, start[1] + 6 * my)
+                if grid.zone_leg(start, ahead, circle) and grid._clear(start, ahead):
+                    return
+            elif distance < 6:
+                act["boost"] = False
+                magnitude = min(magnitude, distance / 2)
+            act["move"] = [steering[0] * magnitude, steering[1] * magnitude]
+        except Exception:
+            # Keep the original goal movement if the map or planner cannot be used.
+            return
+
     def _movement(self, obs, weapons, act, drop=None):
+        self.nav_goal = None
         me = obs["self"]
         xy = me["pos"][:2]
         mz = me["pos"][2]
@@ -869,11 +1199,13 @@ class Bot:
             cube = self._cube_goal(obs, cube_reach, pursuing_drop=False)
 
         if cube is not None:
-            location, distance = cube
+            location, distance, cube_id = cube
             state = "cube"
             move_yaw = math.atan2(location[1] - xy[1], location[0] - xy[0])
             boost = me["energy"] >= 40 and distance > 15
             self.hunt_progress.pop(hunt_id, None)
+            if self.nav_grid is not None:
+                self.nav_goal = (("cube", cube_id), tuple(location[:2]), self.cube_radius)
         elif drop is not None:
             self.hunt_progress.pop(hunt_id, None)
             dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
@@ -881,13 +1213,20 @@ class Bot:
             act.update(move=[0.0, 0.0] if holding_drop else [dx / distance, dy / distance],
                        aim=[yaw, 0.0], boost=not holding_drop and me["energy"] >= 30 and distance > 30,
                        jump=not holding_drop and obs["tick"] % 40 == 0)
+            if self.nav_grid is not None and not holding_drop:
+                self.nav_goal = (("drop", drop["id"]), tuple(drop["pos"][:2]), drop["radius"] - 2)
             return f"drop-hold {drop['progress']:.1f}/{drop['capture_s']:g}s" if holding_drop else "drop-walk"
         elif hunt_id is not None:
+            key = ("laser", hunt_id)
             best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
             if best_hunt[1] < best - 1:
                 self.hunt_progress[hunt_id] = (best_hunt[1], now)
+            elif self._nav_advancing(key, xy, now):
+                self.hunt_progress[hunt_id] = (best, now)
             elif now - since > 6:
                 self.unreachable.add(hunt_id)
+            if self.nav_grid is not None and hunt_pickup["kind"] == "laser" and act.get("take") != hunt_id:
+                self.nav_goal = (key, hunt_pickup["pos"], self.reach)
             if hunt_pickup is not None and hunt_pickup["pos"][2] - mz > 3.5 and best_hunt[1] <= 12.0:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
@@ -944,6 +1283,8 @@ class Bot:
 
         act.update(move=[math.cos(move_yaw), math.sin(move_yaw)], aim=[yaw, 0.0],
                    boost=boost, jump=jump)
+        if self.nav_grid is not None and state == "zone":
+            self.nav_goal = (("zone", None), tuple(goal), 26.0)
         return state
 
     def _track(self, mechs, now):
@@ -1457,6 +1798,7 @@ class Bot:
             return act
 
         movement = self._movement(obs, weapons, act, drop)
+        travel_move = act["move"]
         holding_drop = movement.startswith("drop-hold")
         state = "idle"
         charging = False
@@ -1485,6 +1827,7 @@ class Bot:
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
+                    travel_move = act["move"]
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
             if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
@@ -1541,6 +1884,7 @@ class Bot:
                     scale = (self.step_speed - 0.2) / walk
                     mx, my = act["move"]
                     act["move"] = [mx * scale, my * scale]
+                    travel_move = act["move"]
                     state += " silent"
 
         # Point 17: head straight into next circle before shrink time runs out.
@@ -1554,7 +1898,13 @@ class Bot:
                 act["move"] = [(z["next_center"][0] - me["pos"][0]) / d_next,
                                (z["next_center"][1] - me["pos"][1]) / d_next]
                 act["boost"] = me.get("energy", 0) >= 30 and not charging
+                travel_move = act["move"]
+                if self.nav_grid is not None:
+                    self.nav_goal = (("zone", None), tuple(z["next_center"]), 26.0)
                 state += " zone-run"
+
+        if self.nav_goal is not None and act["move"] is travel_move:
+            self._nav_steer(obs, act, self.nav_goal)
 
         if movement != "roof-climb":
             protect_drop = holding_drop and drop is not None and (drop.get("progress") or 0) >= 2.5
