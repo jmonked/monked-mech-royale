@@ -1,6 +1,8 @@
 """Hunt for a laser, finish weakened mechs and collect nearby power cubes."""
+import json
 import math
 import traceback
+from pathlib import Path
 
 import mechfight as mf
 
@@ -27,6 +29,47 @@ def _lead_aim(muzzle, target, speed):
         flight_time = math.hypot(lx, ly, lz) / speed
         lx, ly, lz = dx + vx * flight_time, dy + vy * flight_time, dz + vz * flight_time
     return [math.atan2(ly, lx), math.atan2(lz, math.hypot(lx, ly))]
+
+
+def _load_cover(hello):
+    with (Path(hello["map"]["dir"]) / "v2" / "world.json").open(encoding="utf-8") as source:
+        prisms = json.load(source)["prisms"]
+    buildings = []
+    for prism in prisms:
+        if prism["kind"] not in ("building", "stadium") or prism["top"] - prism["base"] < 9:
+            continue
+        flat = prism["ring"]
+        ring = list(zip(flat[::2], flat[1::2]))
+        # Area-weighted centroid, independent of how densely each wall is sampled.
+        area2 = cx = cy = 0.0
+        for (ax, ay), (bx, by) in zip(ring[-1:] + ring[:-1], ring):
+            cross = ax * by - bx * ay
+            area2 += cross
+            cx += (ax + bx) * cross
+            cy += (ay + by) * cross
+        if abs(area2) > 1e-8:
+            center = (cx / (3 * area2), cy / (3 * area2))
+            buildings.append((center, max(math.dist(p, center) for p in ring), ring))
+    return buildings
+
+
+def _crosses_ring(start, end, ring):
+    # Intersections along the infinite sight line come in entry/exit pairs.
+    # Only count a pair if some length of the actual segment lies inside it.
+    x, y = start
+    dx, dy = end[0] - x, end[1] - y
+    crossings = []
+    ax, ay = ring[-1]
+    side_a = dx * (ay - y) - dy * (ax - x)
+    for bx, by in ring:
+        side_b = dx * (by - y) - dy * (bx - x)
+        if (side_a > 0) != (side_b > 0):
+            t = ((ax - x) * (by - ay) - (ay - y) * (bx - ax)) / (side_b - side_a)
+            crossings.append(t)
+        ax, ay, side_a = bx, by, side_b
+    crossings.sort()
+    return any(min(leave, 1.0) - max(enter, 0.0) > 1e-9
+               for enter, leave in zip(crossings[::2], crossings[1::2]))
 
 
 class Bot:
@@ -57,6 +100,81 @@ class Bot:
         self.unreachable = set()
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
+        self.healing = False
+        self.cover_spot = None
+        self.cover_threat = None
+        self.cover_time = -math.inf
+        try:
+            self.buildings = _load_cover(hello)
+        except Exception:
+            self.buildings = []
+
+    def _find_cover(self, xy, threat, zone):
+        closest = None
+        best_distance = math.inf
+        for center, radius, ring in self.buildings:
+            distance = math.dist(xy, center)
+            if distance > 120 or distance - radius - 4 >= best_distance:
+                continue
+            dx, dy = center[0] - threat[0], center[1] - threat[1]
+            length = math.hypot(dx, dy)
+            if length == 0:
+                continue
+            vx, vy = max(ring, key=lambda p: p[0] * dx + p[1] * dy)
+            spot = (vx + 4 * dx / length, vy + 4 * dy / length)
+            distance = math.dist(xy, spot)
+            if (distance < best_distance and math.dist(spot, zone["next_center"]) <= zone["next_radius"] - 5
+                    and _crosses_ring(threat, spot, ring)):
+                closest, best_distance = spot, distance
+        return closest
+
+    def _heal(self, obs, act):
+        me = obs["self"]
+        pos = me["pos"]
+        threshold = 0.85 if self.healing else 0.5
+        if not me["in_zone"] or me["hp"] >= threshold * me["max_hp"]:
+            self.healing = False
+            return False
+
+        nearest = min((m["pos"] for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos")),
+                      key=lambda p: math.dist(pos, p), default=None)
+        if nearest is not None and math.dist(pos, nearest) <= self.near_range:
+            self.healing = False
+            return False
+
+        now, zone, xy = obs["t"], obs["zone"], pos[:2]
+        threat = None
+        yaw = me["aim"][0]
+        if nearest is not None:
+            threat = nearest[:2]
+            yaw = math.atan2(threat[1] - xy[1], threat[0] - xy[0])
+        elif self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 10:
+            yaw = self.last_mech_bearing[1]
+            threat = (xy[0] + 100 * math.cos(yaw), xy[1] + 100 * math.sin(yaw))
+
+        if threat is None:
+            self.cover_spot = self.cover_threat = None
+        elif (not self.healing or self.cover_threat is None or now - self.cover_time >= 1
+              or math.dist(threat, self.cover_threat) > 15):
+            self.cover_spot = self._find_cover(xy, threat, zone)
+            self.cover_time, self.cover_threat = now, threat
+        self.healing = True
+        move, boost = [0.0, 0.0], False
+        spot = self.cover_spot
+        if spot is not None and math.dist(spot, zone["next_center"]) <= zone["next_radius"] - 5:
+            distance = math.dist(xy, spot)
+            if distance > 3:
+                move = [(spot[0] - xy[0]) / distance, (spot[1] - xy[1]) / distance]
+                boost = me["energy"] >= 30 and distance > 20
+        elif threat is not None:
+            # Allow four metres of walking room before the next circle's edge.
+            ux, uy = -math.cos(yaw), -math.sin(yaw)
+            ahead = (xy[0] + 4 * ux, xy[1] + 4 * uy)
+            if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
+                move = [ux, uy]
+        act.update(move=move, boost=boost, aim=[yaw, 0.0])
+        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%}")
+        return True
 
     def _remember_damage(self, events, now):
         for event in events:
@@ -287,10 +405,15 @@ class Bot:
         if choices:
             act["pick"] = min(range(len(choices)),
                               key=lambda i: UPGRADE_RANK.get(choices[i].get("id"), len(UPGRADE_RANK)))
+        target = self._choose_target(mechs, me["pos"], now, weapons)
+        # Don't break off to heal when the target is nearly dead and weaker than us: take the kill.
+        finishing = (target is not None and target.get("hp") is not None and target.get("max_hp")
+                     and target["hp"] <= 0.3 * target["max_hp"] and target["hp"] < me["hp"])
+        if not finishing and self._heal(obs, act):
+            return act
         movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act)
         state = "idle"
         charging = False
-        target = self._choose_target(mechs, me["pos"], now, weapons)
         if target is not None:
             hp = target.get("hp")
             state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
