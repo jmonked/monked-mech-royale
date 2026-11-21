@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v51: v39 (4.73) + faster cube/crate/drone snowball (65m crate / 85m drone / 70m threat gate), 0.20s laser pre-align, and 1.65s enemy laser-cooldown push."""
 import json
 import math
 import traceback
@@ -17,9 +17,9 @@ USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs activel
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
-CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting/hunting)
-CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
-DRONE_RANGE = 55.0      # farm NPC drones this close (2 cubes per 350 HP, no squad escalation)
+CUBE_IDLE_RANGE = 80.0  # walk this far for a cube when nothing is targeted (40 m while fighting/hunting)
+CRATE_RANGE = 65.0      # break crates this close (inside cube reach, so the cube gets collected)
+DRONE_RANGE = 85.0      # farm NPC drones this close (2 cubes per 350 HP, no squad escalation)
 DRONE_CUBE_CAP = 15     # farm drones up to the 15-cube upgrade threshold (plating snowball)
 KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
 KILL_LOOT_S = 25.0       # ...within this long after the kill
@@ -268,6 +268,7 @@ class Bot:
         self.last_near_sound = None
         self.short_until = -math.inf
         self.last_beam_threat = None
+        self.enemy_laser_fired = {}
         self.pickups = {}
         self.cubes = {}
         self.cube_progress = (None, math.inf, 0.0)
@@ -628,6 +629,8 @@ class Bot:
                 continue
             bearing = math.atan2(origin[1] - pos[1], origin[0] - pos[0])
             fired_at = now - beam.get("age", 0.0)
+            if beam.get("kind") == "laser":
+                self.enemy_laser_fired[by] = max(self.enemy_laser_fired.get(by, -math.inf), fired_at)
             if self.last_beam_threat is None or fired_at >= self.last_beam_threat[0]:
                 self.last_beam_threat = (fired_at, bearing, origin)
 
@@ -1106,7 +1109,7 @@ class Bot:
                             blocked = False
                     self.laser_target = laser_tgt["id"]
                     full_charge = _stat(stats, "charge", self.laser.get("charge", 0.75))
-                    near_full = cur_charge >= 0.93 * full_charge - 0.1
+                    near_full = cur_charge >= 0.93 * full_charge - 0.20
                     if near_full or not gun_useful or laser_tgt is not target:
                         use_direct = True
                         direct, _ = self._lead_aim(me, laser_tgt, LASER_LEAD_S)
@@ -1246,8 +1249,10 @@ class Bot:
         # Point 15: without a laser, don't push a laser holder unless they are <= 50% of our HP.
         if USE_NO_LASER_CAUTION and not has_laser and "laser" in t_weapons and (hp is None or hp > 0.5 * me["hp"]):
             return False
-        outgunned = (has_laser and "laser" not in t_weapons and "lightning" not in t_weapons
-                     and hp is not None and hp <= 0.95 * me["hp"])
+        laser_cd_left = self.enemy_laser_fired.get(target.get("id"), -math.inf) + self.laser.get("cooldown", 1.65) - now
+        outgunned = ((has_laser and "laser" not in t_weapons and "lightning" not in t_weapons
+                      and hp is not None and hp <= 0.95 * me["hp"])
+                     or ("laser" in t_weapons and laser_cd_left >= 0.5 and distance <= 160.0))
         weaker = (hp is not None and hp <= 0.7 * me["hp"]) or cubes + 2 <= (me.get("cubes") or 0) or outgunned
         if not weaker or math.dist(target["pos"][:2], zone["next_center"]) > zone["next_radius"]:
             return False
@@ -1499,10 +1504,10 @@ class Bot:
             # Third-party cover + reload cover: if another mech hits us mid-fight, pull to cover and let them fight.
             tp_hit = max(
                 ((t_hit, aid, brg) for aid, (t_hit, brg) in self.last_hits.items()
-                 if aid != target["id"] and now - t_hit <= 2.5),
+                 if 0 <= aid < 16 and aid != me["id"] and aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and me.get("in_zone", True) and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
@@ -1559,7 +1564,7 @@ class Bot:
                 self._maybe_early_reload(weapons, act)
                 # Point 16: break crates when no mech is within 120 m and nobody hit us in 5 s.
                 near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
-                                   and math.dist(m["pos"], me["pos"]) <= 120.0 for m in mechs)
+                                   and math.dist(m["pos"], me["pos"]) <= 70.0 for m in mechs)
                                or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5))
                 if USE_MORE_CUBES and not near_threat and self._shoot_crate(obs, weapons, act):
                     state = "crate"
