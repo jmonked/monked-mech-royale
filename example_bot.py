@@ -413,6 +413,12 @@ class Bot:
         aim = direct
         use_direct = False
         charging = False
+        # While the laser charges, the torso follows the gun's lead so the gun keeps hitting;
+        # it swings onto the laser line only once the charge is (almost) full.
+        gun_useful = any(
+            w and w["kind"] == "gun" and distance <= _stat(w.get("stats") or {}, "range", self.gun_range)
+            and not (w.get("reload") or 0) > 0 and (w.get("ammo") is None or w["ammo"] > 0)
+            for w in weapons[:2])
         for i, weapon in enumerate(weapons[:2]):
             if not weapon:
                 continue
@@ -425,10 +431,12 @@ class Bot:
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 if distance <= reach and (weapon.get("cooldown", 0) <= 0 or (weapon.get("charge") or 0) > 0):
-                    use_direct = True
                     self.laser_mark = (self._now, target["pos"])
                     full_charge = _stat(stats, "charge", self.laser.get("charge", 0.75))
-                    charged = weapon.get("charge", 0) >= 0.93 * full_charge
+                    charged = (weapon.get("charge") or 0) >= 0.93 * full_charge
+                    # Turn onto the laser line one decision early (turning takes ~0.1 s).
+                    near_full = (weapon.get("charge") or 0) >= 0.93 * full_charge - 0.1
+                    use_direct = use_direct or near_full or not gun_useful
                     charging = not (charged and aligned(direct[0], self._hit_gate(target, distance, 0.35, 2.5)))
                     act["fire"][i] = charging
                     self.laser_released = not charging

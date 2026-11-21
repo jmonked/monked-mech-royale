@@ -240,6 +240,16 @@ def b7_gun_does_not_fire_unled_during_laser_aim():
     a = b.act(make_obs(mechs=[m], events=[hit(5)], weapons=[gun(), laser(charge=0.3)], aim=(0.0, 0.0)))
     assert a["fire"][LASER] is True
     assert a["fire"][0] is False, "gun would fly ~7 m behind the target"
+    lead = a["aim"][0]
+    assert lead > deg(2.0), "early in the charge the torso follows the gun lead"
+    # Torso now on the lead: gun fires while the laser keeps charging (DeepSeek checkpoint 1, T3).
+    a = b.act(make_obs(t=20.1, mechs=[m], weapons=[gun(), laser(charge=0.4)], aim=(lead, 0.0)))
+    assert a["fire"][0] is True and a["fire"][LASER] is True, a["fire"]
+    # Charge nearly full: swing to the laser line, don't release while still on the lead.
+    a = b.act(make_obs(t=20.2, mechs=[m], weapons=[gun(), laser(charge=0.75)], aim=(lead, 0.0)))
+    assert a["fire"][LASER] is True and abs(a["aim"][0]) < deg(0.5), a
+    a = b.act(make_obs(t=20.3, mechs=[m], weapons=[gun(), laser(charge=0.75)], aim=(a["aim"][0], 0.0)))
+    assert a["fire"][LASER] is False, "on the laser line at full charge: fire"
 
 
 @test
