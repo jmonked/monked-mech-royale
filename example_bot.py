@@ -14,6 +14,7 @@ USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holde
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
+USE_KITE = True              # v36: hold a laser -> back off under 60 m from lightning / higher-HP bots (optimal-range kiting)
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
@@ -1470,6 +1471,22 @@ class Bot:
                 act["move"] = escape
                 act["boost"] = me.get("energy", 0) >= 30 and not charging
                 state += " wedge"
+            elif (USE_KITE and not finishing and not holding_drop and movement in ("zone", "laser hunt", "drop-walk")
+                  and any(w and w["kind"] == "laser" for w in weapons[:2])
+                  and not self._should_push(obs, target)
+                  and math.dist(me["pos"][:2], target["pos"][:2]) < 60.0
+                  and ("lightning" in (target.get("weapons") or [])
+                       or (target.get("hp") is not None and target["hp"] > me["hp"]))):
+                dx, dy = me["pos"][0] - target["pos"][0], me["pos"][1] - target["pos"][1]
+                dist = math.hypot(dx, dy)
+                if dist > 1e-6:
+                    ux, uy = dx / dist, dy / dist
+                    ahead = (me["pos"][0] + 6.0 * ux, me["pos"][1] + 6.0 * uy)
+                    if math.dist(ahead, obs["zone"]["next_center"]) <= obs["zone"]["next_radius"]:
+                        act["move"] = [ux, uy]
+                        act["boost"] = (me.get("energy", 0) >= 35 and not charging
+                                        and "lightning" in (target.get("weapons") or []))
+                        state += " kite"
             elif movement in ("zone", "laser hunt", "drop-walk"):
                 s_sign = _strafe_sign(now)
                 if self._should_push(obs, target):
