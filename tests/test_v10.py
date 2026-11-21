@@ -614,6 +614,44 @@ def position_history_refines_both_leads():
         assert b.act(obs)["aim"][0] == 0
 
 
+# ----------------------------------------------------------------- v29: push weaker isolated targets
+@test
+def p1_push_weaker_target():
+    b = bot()
+    o = make_obs(t=60.0, mechs=[mech(5, 120, 0, hp=600)], events=[hit(5)]); o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert a["move"][0] > 0.99, a["move"]
+
+
+@test
+def p2_no_push_when_second_mech_close():
+    b = bot()
+    o = make_obs(t=60.0, mechs=[mech(5, 120, 0, hp=600), mech(6, -50, 0)], events=[hit(5)])
+    o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert a["move"][0] < 0.9, a["move"]
+
+
+@test
+def p3_no_push_equal_target_or_low_hp_or_late():
+    for kw, m in ((dict(t=60.0), mech(5, 120, 0, hp=1400)), (dict(t=60.0, hp=700), mech(5, 120, 0, hp=300)),
+                  (dict(t=240.0), mech(5, 120, 0, hp=600))):
+        b = bot()
+        o = make_obs(mechs=[m], events=[hit(5)], **kw); o["zone"]["next_center"] = [0, -100]
+        a = b.act(o)
+        assert a["move"][0] < 0.9, (kw, a["move"])
+
+
+@test
+def p4_push_smaller_by_cubes():
+    b = bot()
+    m = mech(5, 120, 0, hp=1400); m["cubes"] = 0
+    o = make_obs(t=60.0, mechs=[m], events=[hit(5)], cubes=4); o["zone"]["next_center"] = [0, -100]
+    o["self"]["max_hp"] = 1624; o["self"]["hp"] = 1624
+    a = b.act(o)
+    assert a["move"][0] > 0.99, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:

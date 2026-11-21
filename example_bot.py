@@ -13,6 +13,10 @@ CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 
 CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
 KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
 KILL_LOOT_S = 25.0       # ...within this long after the kill
+PUSH_RANGE = 230.0     # push a weaker, isolated target from this far...
+PUSH_STOP = 35.0       # ...until this close
+PUSH_MIN_HP = 0.6      # only while we have this much HP
+PUSH_CLEAR = 80.0      # and no other mech is this close to us
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
@@ -568,6 +572,22 @@ class Bot:
             act["fire"][gun_slot] = on
         return True
 
+    def _should_push(self, obs, target):
+        me, zone, now = obs["self"], obs["zone"], obs["t"]
+        if now >= LATE_T or me["hp"] < PUSH_MIN_HP * me["max_hp"] or not target.get("pos"):
+            return False
+        distance = math.dist(me["pos"][:2], target["pos"][:2])
+        if not PUSH_STOP <= distance <= PUSH_RANGE:
+            return False
+        hp, cubes = target.get("hp"), target.get("cubes") or 0
+        weaker = (hp is not None and hp <= 0.7 * me["hp"]) or cubes + 2 <= (me.get("cubes") or 0)
+        if not weaker or math.dist(target["pos"][:2], zone["next_center"]) > zone["next_radius"]:
+            return False
+        # Only a 1v1: nobody else close to us.
+        return not any(m.get("kind") == "mech" and m.get("id") != target.get("id") and m.get("pos")
+                       and m.get("id") not in self.killed and math.dist(m["pos"][:2], me["pos"][:2]) <= PUSH_CLEAR
+                       for m in obs.get("mechs") or [])
+
     def _remember_sounds(self, sounds, now):
         for sound in sounds:
             if (sound.get("kind") not in ("gun", "laser", "laser_charge", "lightning", "mortar")
@@ -680,6 +700,13 @@ class Bot:
             hp = target.get("hp")
             state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
             charging = self._fight(me, weapons, target, act)
+            if movement == "zone" and self._should_push(obs, target):
+                # A weaker mech, alone: close in and finish it instead of trading shots from 150 m.
+                dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
+                dist = math.hypot(dx, dy)
+                act["move"] = [dx / dist, dy / dist]
+                act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
+                state += " push"
         else:
             bearing = self._face_bearing(mechs, me["pos"], now)
             if bearing is not None:
