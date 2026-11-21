@@ -13,7 +13,7 @@ LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command t
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 
 UPGRADE_RANK = {name: rank for rank, name in enumerate((
-    "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
+    "plating", "armor", "nanites", "laser_damage", "laser_charge", "gun_damage",
     "gun_rate", "gun_mag", "lightning_efficiency", "lightning_range", "lightning_chain",
     "gyros", "servos", "capacitor", "reactor", "jets", "gun_velocity", "sensors",
     "laser_pierce", "mortar_reload", "mortar_splash", "mortar_velocity",

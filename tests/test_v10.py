@@ -424,6 +424,16 @@ def d4_long_hold_never_releases_outside_body():
     assert a["fire"][LASER] is False, "1.3 deg (2.3 m) is on the body: take it"
 
 
+@test
+def f1_plating_before_armor():
+    """+15% max HP (x1.15 effective HP, also vs zone) beats -8% weapon damage (x1.087)."""
+    b = bot()
+    o = make_obs()
+    o["offer"] = {"id": 1, "expires": 30, "choices": [{"id": "armor"}, {"id": "gun_rate"}, {"id": "plating"}]}
+    a = b.act(o)
+    assert a.get("pick") == 2, a.get("pick")
+
+
 def run():
     failed = 0
     for fn in TESTS:
