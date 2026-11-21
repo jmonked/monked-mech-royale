@@ -380,7 +380,7 @@ class Bot:
                     continue
                 # Early: anything within 250 m. Later: within 80 m while not fighting (e.g. a kill's drop).
                 if (((obs["t"] < 90 and distance <= 250)
-                     or (distance <= LATE_HUNT_RANGE and self.target_id is None
+                     or (distance <= LATE_HUNT_RANGE and self.target_id is None and obs["t"] < LATE_T
                          and pickup_id in visible and me["in_zone"])) and rank < best_hunt
                         and math.dist(location, zone["next_center"]) <= zone["next_radius"]):
                     best_hunt = rank
@@ -619,7 +619,7 @@ class Bot:
             if bearing is not None:
                 state = "face"
                 act["aim"] = [bearing, 0.0]
-            elif (now < SCAN_UNTIL and movement != "laser hunt"
+            elif (now < SCAN_UNTIL and movement == "zone"
                   and not any(w and w.get("kind") == "laser" for w in weapons)):
                 # No laser yet and nothing to watch: sweep the 120 deg vision wedge round to spot loot.
                 phase = now % SCAN_EVERY
