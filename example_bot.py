@@ -1,8 +1,16 @@
-"""Hunt for a laser early and return fire on attackers or nearby mechs."""
+"""Hunt for a laser, finish weakened mechs and collect nearby power cubes."""
 import math
 import traceback
 
 import mechfight as mf
+
+
+UPGRADE_RANK = {name: rank for rank, name in enumerate((
+    "armor", "plating", "nanites", "laser_damage", "laser_charge", "gun_damage",
+    "gun_rate", "gun_mag", "lightning_efficiency", "lightning_range", "lightning_chain",
+    "gyros", "servos", "capacitor", "reactor", "jets", "gun_velocity", "sensors",
+    "laser_pierce", "mortar_reload", "mortar_splash", "mortar_velocity",
+))}
 
 
 def _stat(stats, key, default):
@@ -28,6 +36,9 @@ class Bot:
         config = hello.get("config") or {}
         self.reach = _stat(config.get("loot") or {}, "pickup_radius", 4)
         self.near_range = _stat(config.get("vision") or {}, "near_range", 45)
+        cubes = config.get("cubes") or {}
+        self.cube_radius = _stat(cubes, "pickup_radius", 3.5)
+        self.cube_cap = _stat(cubes, "stat_cap", 10)
         gun = (config.get("weapons") or {}).get("gun") or {}
         self.gun_speed = _stat(gun, "speed", 252)
         self.gun_range = _stat(gun, "range", 230)
@@ -35,10 +46,14 @@ class Bot:
         self.lightning = (config.get("weapons") or {}).get("lightning") or {}
         self.muzzle_height = _stat(config.get("mech") or {}, "muzzle_height", 7)
         self.last_hits = {}
+        self.target_id = None
+        self.killed = set()
         self.last_damage_bearing = None
         self.last_mech_bearing = None
         self.last_sound = None
         self.pickups = {}
+        self.cubes = {}
+        self.cube_progress = (None, math.inf, 0.0)
         self.unreachable = set()
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
@@ -55,22 +70,74 @@ class Bot:
                 if 0 <= attacker < 16:
                     self.last_mech_bearing = (now, bearing)
 
-    def _choose_target(self, mechs, pos, now):
-        target = None
-        closest = math.inf
+    def _choose_target(self, mechs, pos, now, weapons):
+        laser = next((w for w in weapons if w and w["kind"] == "laser"), None)
+        if laser:
+            reach = _stat(laser.get("stats") or {}, "range", _stat(self.laser, "range", 280))
+        else:
+            gun = next((w for w in weapons if w and w["kind"] == "gun"), None) or {}
+            reach = _stat(gun.get("stats") or {}, "range", self.gun_range)
+
+        best = current = None
+        best_rank = None
         for mech in mechs:
-            if mech.get("kind") != "mech" or mech.get("id") is None or not mech.get("pos"):
+            mech_id = mech.get("id")
+            if mech.get("kind") != "mech" or mech_id is None or mech_id in self.killed or not mech.get("pos"):
                 continue
             distance = math.dist(mech["pos"], pos)
-            hit = self.last_hits.get(mech["id"])
+            hit = self.last_hits.get(mech_id)
             recent = hit is not None and now - hit[0] <= 8.0
-            if not recent and distance > self.near_range:
+            hp, max_hp = mech.get("hp"), mech.get("max_hp")
+            wounded = hp is not None and max_hp is not None and hp <= 0.5 * max_hp
+            if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
-            # Prefer a recent attacker when the distances differ by about a metre.
-            ranked_distance = distance - (1.0 if recent else 0.0)
-            if ranked_distance < closest:
-                target, closest = mech, ranked_distance
-        return target
+            if mech_id == self.target_id:
+                current = mech
+            if hp is None:
+                rank = (math.inf, 0, distance - (1.0 if recent else 0.0))
+            else:
+                rank = (hp, not recent, distance)
+            if best_rank is None or rank < best_rank:
+                best, best_rank = mech, rank
+
+        if current is not None:
+            hp, best_hp = current.get("hp"), best.get("hp")
+            if hp is None or best_hp is None or best_hp >= 0.6 * hp:
+                best = current
+        self.target_id = best["id"] if best is not None else None
+        return best
+
+    def _cube_goal(self, obs, max_distance):
+        me = obs["self"]
+        pos = me["pos"]
+        zone = obs["zone"]
+        visible = {c["id"]: c["pos"] for c in obs.get("cubes") or []}
+        self.cubes.update(visible)
+        picked_up = any(e.get("type") == "pickup" for e in obs.get("events") or [])
+        options = []
+        for cube_id, location in list(self.cubes.items()):
+            distance = math.dist(pos[:2], location[:2])
+            height = location[2] - pos[2]
+            if abs(height) <= 4 and ((picked_up and distance <= self.cube_radius)
+                                     or (cube_id not in visible and distance <= 4)):
+                del self.cubes[cube_id]
+                continue
+            if (me.get("cubes", 0) < self.cube_cap and height <= 3.5 and distance <= max_distance
+                    and cube_id not in self.unreachable
+                    and math.dist(location[:2], zone["next_center"]) <= zone["next_radius"]):
+                options.append((distance, cube_id))
+
+        now = obs["t"]
+        previous_id, best, since = self.cube_progress
+        for distance, cube_id in sorted(options):
+            if cube_id != previous_id or distance <= best - 1:
+                self.cube_progress = (cube_id, distance, now)
+            elif now - since >= 4:
+                self.unreachable.add(cube_id)
+                continue
+            return self.cubes[cube_id], distance
+        self.cube_progress = (None, math.inf, now)
+        return None
 
     def _movement(self, obs, slot_empty, act):
         me = obs["self"]
@@ -89,9 +156,9 @@ class Bot:
         state = "zone"
         outside = not me["in_zone"]
         boost = outside
+        hunt_id = None
         if slot_empty:
             best_take = best_hunt = (2, math.inf)
-            hunt_id = None
             for pickup_id, pickup in self.pickups.items():
                 kind = pickup["kind"]
                 if kind not in ("laser", "lightning"):
@@ -112,17 +179,26 @@ class Bot:
                     state = "laser hunt"
                     goal = location
                     boost = outside or (me["energy"] >= 30 and distance > 25)
-            if hunt_id is not None:
-                # Give up on a pickup if we have not closed 1 m on it in 6 s (blocked by a building).
-                now = obs["t"]
-                best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
-                if best_hunt[1] < best - 1:
-                    self.hunt_progress[hunt_id] = (best_hunt[1], now)
-                elif now - since > 6:
-                    self.unreachable.add(hunt_id)
-
+        # Preserve v4's default facing even when a cube diverts the legs.
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
-        act.update(move=[math.cos(yaw), math.sin(yaw)], aim=[yaw, 0.0],
+        move_yaw = yaw
+        cube = self._cube_goal(obs, 15 if hunt_id is not None else 40)
+        if cube is not None:
+            location, distance = cube
+            state = "cube"
+            move_yaw = math.atan2(location[1] - xy[1], location[0] - xy[0])
+            boost = me["energy"] >= 40 and distance > 15
+            self.hunt_progress.pop(hunt_id, None)
+        elif hunt_id is not None:
+            # Give up on a pickup if we have not closed 1 m on it in 6 s (blocked by a building).
+            now = obs["t"]
+            best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
+            if best_hunt[1] < best - 1:
+                self.hunt_progress[hunt_id] = (best_hunt[1], now)
+            elif now - since > 6:
+                self.unreachable.add(hunt_id)
+
+        act.update(move=[math.cos(move_yaw), math.sin(move_yaw)], aim=[yaw, 0.0],
                    boost=boost, jump=obs["tick"] % 40 == 0)
         return state
 
@@ -199,20 +275,25 @@ class Bot:
 
     def _act(self, obs: mf.Observation) -> mf.Action:
         now = obs["t"]
-        self._remember_damage(obs.get("events") or [], now)
+        events = obs.get("events") or []
+        self._remember_damage(events, now)
+        self.killed.update(e["target"] for e in events if e.get("type") == "kill" and "target" in e)
         self._remember_sounds(obs.get("sounds") or [], now)
         me = obs["self"]
         weapons = me.get("weapons") or []
         mechs = obs.get("mechs") or []
         act: mf.Action = {"tick": obs["tick"], "fire": [False, False]}
-        if obs.get("offer"):
-            act["pick"] = 0
+        choices = (obs.get("offer") or {}).get("choices") or []
+        if choices:
+            act["pick"] = min(range(len(choices)),
+                              key=lambda i: UPGRADE_RANK.get(choices[i].get("id"), len(UPGRADE_RANK)))
         movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act)
         state = "idle"
         charging = False
-        target = self._choose_target(mechs, me["pos"], now)
+        target = self._choose_target(mechs, me["pos"], now, weapons)
         if target is not None:
-            state = f"fight {target['id']}"
+            hp = target.get("hp")
+            state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
             charging = self._fight(me, weapons, target, act)
         else:
             bearing = self._face_bearing(mechs, me["pos"], now)
