@@ -365,6 +365,18 @@ def d3_close_crossing_target_released_quickly():
     assert k - full_at <= 2, (k, full_at)
 
 
+@test
+def d4_long_hold_never_releases_outside_body():
+    """DeepSeek checkpoint 4: after 0.8 s at full the gate widens, but never past the body width."""
+    b = bot()
+    w = [gun(), laser(charge=0.75)]
+    b.act(make_obs(t=20.0, mechs=[mech(5, 100, 0)], events=[hit(5)], weapons=w, aim=(deg(10), 0)))
+    a = b.act(make_obs(t=20.9, mechs=[mech(5, 100, 0)], weapons=w, aim=(deg(1.8), 0)))
+    assert a["fire"][LASER] is True, "1.8 deg at 100 m is 3.1 m off a 2.5 m body: keep holding"
+    a = b.act(make_obs(t=21.0, mechs=[mech(5, 100, 0)], weapons=w, aim=(deg(1.3), 0)))
+    assert a["fire"][LASER] is False, "1.3 deg (2.3 m) is on the body: take it"
+
+
 def run():
     failed = 0
     for fn in TESTS:

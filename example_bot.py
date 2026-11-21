@@ -213,7 +213,8 @@ class Bot:
         if laser:
             laser_damage = _stat(laser.get("stats") or {}, "damage", _stat(self.laser, "damage", 315))
             # Cubes scale damage; assume the target may have up to 3 armor upgrades (-24%).
-            laser_damage *= 0.76 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
+            # We release at 93% charge: 35% + 65% * 0.93 = 95.5% of full damage.
+            laser_damage *= 0.955 * 0.76 * (1 + self.damage_per_cube * min(cubes or 0, self.cube_cap))
         # Under fire: a mech that hit us in the last 3 s from close range. While one is around,
         # don't turn away to chase a distant wounded mech unless one full laser shot kills it.
         under_fire = any(
@@ -424,7 +425,9 @@ class Bot:
         distance = math.dist(me["pos"], target["pos"])
         gate = self._hit_gate(target, distance, 0.35, 4.0)
         if self._now - self.laser_full_since >= 0.8:
-            gate *= 2  # been waiting a while: take a slightly looser shot before the game auto-fires
+            # Been waiting a while: loosen up to the full body width (never wider), before the game auto-fires.
+            radius = self.mech_radius * (1 + self.size_per_cube * (target.get("cubes") or 0))
+            gate = max(gate, min(2 * gate, math.degrees(math.atan2(radius, max(distance, 1.0)))))
         yaw = math.atan2(target["pos"][1] - y, target["pos"][0] - x)
         return abs(math.remainder(yaw - actual[0], math.tau)) <= math.radians(gate)
 
