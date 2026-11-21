@@ -1,8 +1,5 @@
-"""v33 (rc2): v32 (4.29) + all v32-audit and v33-candidate-feedback fixes:
-relative-velocity bullet/mortar dodge (opposes motion on led hits), smart supply-drop chasing
-(150 m when healthy, grab cubes <= 15 m on the way, keep strafe/push, drop contested >= 3 s),
-hole-aware 3D LOS with per-tick cache, fixed rooftop climbs + 8 s walk timeout,
-angular-width laser sidestep & beam counter-fire, 30-deg alt-laser cap, and hardened Finals switch."""
+"""v34: v33 (4.44) + switch-gated reload cover, early/no-laser push caution,
+more crate cubes, early zone-run, FFA third-party targeting, and rich replay labels."""
 import json
 import math
 import traceback
@@ -10,6 +7,14 @@ from pathlib import Path
 
 import mechfight as mf
 
+
+# --- v34 switches: set False to turn a change off ---
+USE_RELOAD_COVER = True      # point 14: step behind cover while gun reloads and laser is busy
+USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holder without a laser
+USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
+USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
+USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
+USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -25,7 +30,7 @@ PUSH_MIN_HP = 0.6      # only while we have this much HP
 PUSH_CLEAR = 80.0      # and no other mech is this close to us
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
-HEAL_FIGHTBACK_S = 2.0  # restored to v32's proven 2.0 s window while retreating to heal
+HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 DUEL_STRAFE_RAD = math.radians(35)  # diagonal angle during pushes/duels to dodge 252 m/s gun fire
 ROOF_LASER_MAX_DZ = 30.0  # max vertical climb for a rooftop laser when unpressured
 ROOF_CLAIM_MAX_H = 45.0   # max building height to claim as a rooftop fortress
@@ -241,6 +246,8 @@ class Bot:
         self.npc_half_height = 0.5 * _stat(npc, "height", 3.5)
         self.half_height = 0.5 * _stat(config.get("mech") or {}, "height", 9)
         self.tracks = {}
+        self.hp_seen = {}             # point 11: mech id -> (time, hp)
+        self.hp_drop_t = {}           # point 11: mech id -> last time hp dropped without us hitting it
         self.size_per_cube = _stat(cubes, "size_per_cube", 0.05)
         self.laser_released = False
         self.laser_target = None
@@ -249,7 +256,7 @@ class Bot:
         self.step_speed = _stat(config.get("sound") or {}, "step_speed", 5.0)
         self.drop_id = None
         self.drop_retry_at = {}
-        self.drop_contested_since = {}  # drop_id -> first time a rival lingered near it
+        self.drop_contested_since = {}
         self.last_hits = {}
         self.recent_dealt = {}
         self.target_id = None
@@ -265,7 +272,6 @@ class Bot:
         self.cube_progress = (None, math.inf, 0.0)
         self.unreachable = set()
         self.unreachable_roofs = set()
-        # [roof_id, climb_xy, center_xy, top, climb_started_t, walk_best_dist, walk_progress_t]
         self.roof_goal = None
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
@@ -281,6 +287,7 @@ class Bot:
         self.unstick_sign = 1.0
         self.unstick_streak = 0
         self.is_finals = False
+        self.finals_t = None          # point 8: timestamp when Finals FFA switch tripped
         self._now = 0.0
         self._los_cache = {}
         try:
@@ -359,7 +366,6 @@ class Bot:
             score = dist + 0.5 * math.dist(center, zone["next_center"])
             if score < best_score:
                 best_score = score
-                # [roof_id, climb_xy, center_xy, top, climb_started_t, walk_best_dist, walk_progress_t]
                 best = [idx, climb_xy, center, top, None, dist, now]
         return best
 
@@ -379,10 +385,6 @@ class Bot:
         return None
 
     def _projectile_dodge(self, obs, *, ignore_npc=False, ignore_mortar=False):
-        """Relative-velocity bullet & mortar dodge.
-        Problem #2 fix: when a bullet is led straight onto our future spot, choose the side
-        that OPPOSES our current velocity (brake/reverse) so we do not keep walking into it!
-        """
         me = obs["self"]
         if not me.get("in_zone", True):
             return None, False
@@ -452,7 +454,6 @@ class Bot:
                         vh = math.hypot(vx, vy)
                         if vh > 1e-4:
                             nx, ny = -vy / vh, vx / vh
-                            # If bullet is well-led near our future center AND we are moving, oppose our motion!
                             if d2 < 0.65 * my_r and m_speed > 1.0:
                                 if nx * mvx + ny * mvy > 0:
                                     nx, ny = -nx, -ny
@@ -471,7 +472,6 @@ class Bot:
         return valid, need_boost
 
     def _laser_sidestep(self, obs, charging_self):
-        """Problem #7 fix: use true body angular width + 3 m margin instead of a fixed 14-deg cone."""
         me = obs["self"]
         if not me.get("in_zone", True):
             return None, False
@@ -569,7 +569,7 @@ class Bot:
             dist_c = math.dist(xy, center)
             move = [(center[0] - xy[0]) / dist_c, (center[1] - xy[1]) / dist_c] if dist_c > 2.5 else [0.0, 0.0]
             act.update(move=move, boost=False, aim=[yaw, 0.0])
-            mf.draw.label(f"roof-heal {me['hp'] / me['max_hp']:.0%}")
+            mf.draw.label(f"roof-heal {me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"[:80])
             return True
 
         if threat is None:
@@ -592,7 +592,7 @@ class Bot:
             if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
                 move = [ux, uy]
         act.update(move=move, boost=boost, aim=[yaw, 0.0])
-        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%}")
+        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"[:80])
         return True
 
     def _remember_damage(self, events, now):
@@ -636,6 +636,9 @@ class Bot:
             eff *= 0.70
         elif mech.get("charging"):
             eff *= 0.85
+        # Point 11: in Finals FFA, prioritize mechs actively taking third-party damage.
+        if USE_FFA_THIRD_PARTY and self.is_finals and self._now - self.hp_drop_t.get(mech.get("id"), -math.inf) <= 2.0:
+            eff *= 0.8
         return eff
 
     def _choose_target(self, mechs, pos, now, weapons, cubes=0):
@@ -696,8 +699,6 @@ class Bot:
         return best
 
     def _drop_goal(self, obs, healing):
-        """Problem #1 fix: when healthy (>= 75% HP), only chase drops within 150 m (250 m when hurt),
-        and abandon any drop where a rival lingers for >= 3 s."""
         me, zone, now = obs["self"], obs["zone"], obs["t"]
         healthy = me["hp"] >= 0.75 * me["max_hp"]
         max_drop_dist = DROP_HEALTHY_DIST if healthy else 250.0
@@ -858,7 +859,6 @@ class Bot:
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
 
-        # Problem #1 fix: while walking to a drop (outside the ring), NEVER pass up a cube within 15 m!
         holding_drop = drop is not None and math.dist(xy, drop["pos"][:2]) <= drop["radius"] - 2
         if holding_drop:
             cube = None
@@ -910,7 +910,6 @@ class Bot:
                     r_id, climb_xy, center_xy, top, climb_started, w_best, w_since = self.roof_goal
                     out_of_zone = math.dist(center_xy, zone["next_center"]) > zone["next_radius"] - 4.0
                     d_now = math.dist(xy, climb_xy)
-                    # Problem #3 fix: 8 s walk progress timeout so we never grind walls heading to a roof.
                     if d_now < w_best - 1.0:
                         self.roof_goal[5] = d_now
                         self.roof_goal[6] = now
@@ -957,6 +956,14 @@ class Bot:
                 delta = [(p - q) / (now - prev[0]) for p, q in zip(pos, prev[1])]
                 vel = [0.85 * v + 0.15 * d for v, d in zip(vel, delta)] if vel else delta
             self.tracks[m["id"]] = (now, pos, vel or (0, 0, 0))
+            # Point 11: detect third-party HP drops on enemy mechs for Finals targeting.
+            if m.get("kind") == "mech":
+                hp = m.get("hp")
+                if hp is not None:
+                    prev_hp = self.hp_seen.get(m["id"])
+                    if prev_hp and hp < prev_hp[1] - 1 and now - self.recent_dealt.get(m["id"], -math.inf) > 0.5:
+                        self.hp_drop_t[m["id"]] = now
+                    self.hp_seen[m["id"]] = (now, hp)
 
     def _scale(self, mech):
         return 1 + self.size_per_cube * (mech.get("cubes") or 0)
@@ -1021,7 +1028,6 @@ class Bot:
         return self._on_body(me.get("aim"), aim, distance, target)
 
     def _alt_laser_target(self, me, mechs, exclude_id, reach):
-        """Problem #6 fix: only switch to an unobstructed mech within 30 deg of current aim."""
         actual = me.get("aim")
         if not actual or actual[0] is None:
             return None
@@ -1115,7 +1121,6 @@ class Bot:
         return charging
 
     def _shoot_beam_origin(self, obs, weapons, act):
-        """Problem #5 fix: gate blind beam-origin shots by true body angular width instead of 4 deg."""
         if self.last_beam_threat is None:
             return False
         fired_at, _bearing, origin = self.last_beam_threat
@@ -1216,6 +1221,11 @@ class Bot:
 
     def _should_push(self, obs, target):
         me, zone, now = obs["self"], obs["zone"], obs["t"]
+        # Point 13: in the first 60 s, don't push a laser holder when we don't have a laser.
+        if USE_EARLY_CAUTION and now < 60.0:
+            my_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
+            if "laser" in (target.get("weapons") or []) and not my_laser:
+                return False
         if now >= LATE_T or me["hp"] < PUSH_MIN_HP * me["max_hp"] or not target.get("pos"):
             return False
         if self.is_finals:
@@ -1228,6 +1238,9 @@ class Bot:
         hp, cubes = target.get("hp"), target.get("cubes") or 0
         has_laser = any(w and w["kind"] == "laser" for w in (me.get("weapons") or [])[:2])
         t_weapons = target.get("weapons") or []
+        # Point 15: without a laser, don't push a laser holder unless they are <= 50% of our HP.
+        if USE_NO_LASER_CAUTION and not has_laser and "laser" in t_weapons and (hp is None or hp > 0.5 * me["hp"]):
+            return False
         outgunned = (has_laser and "laser" not in t_weapons and "lightning" not in t_weapons
                      and hp is not None and hp <= 0.95 * me["hp"])
         weaker = (hp is not None and hp <= 0.7 * me["hp"]) or cubes + 2 <= (me.get("cubes") or 0) or outgunned
@@ -1401,6 +1414,7 @@ class Bot:
                         self.non_our_deaths += delta_deaths
                         if self.non_our_deaths >= 2:
                             self.is_finals = True
+                            self.finals_t = now
             self.prev_alive = alive_i
 
         for m in obs.get("mechs") or []:
@@ -1443,6 +1457,7 @@ class Bot:
             return act
 
         movement = self._movement(obs, weapons, act, drop)
+        holding_drop = movement.startswith("drop-hold")
         state = "idle"
         charging = False
         pushing = False
@@ -1456,7 +1471,6 @@ class Bot:
                 act["boost"] = me.get("energy", 0) >= 30 and not charging
                 state += " wedge"
             elif movement in ("zone", "laser hunt", "drop-walk"):
-                # Problem #1 fix: keep pushing & diagonal strafing active even while walking to a drop!
                 s_sign = _strafe_sign(now)
                 if self._should_push(obs, target):
                     dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
@@ -1471,6 +1485,30 @@ class Bot:
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
+            # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
+            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb":
+                reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
+                laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
+                hit = self.last_hits.get(target["id"])
+                being_shot = hit is not None and now - hit[0] <= 2.0
+                if reloading and laser_busy and being_shot and not self._target_blocked(me, target):
+                    on_roof = self._current_roof(me["pos"])
+                    if on_roof is not None:
+                        # On a rooftop, pull back toward roof center instead of walking off the edge.
+                        rc = on_roof[1]
+                        d = math.dist(me["pos"][:2], rc)
+                        if d > 2.0:
+                            act["move"] = [(rc[0] - me["pos"][0]) / d, (rc[1] - me["pos"][1]) / d]
+                            act["boost"] = False
+                            state += " cover"
+                    else:
+                        spot = self._find_cover(me["pos"][:2], target["pos"][:2], obs["zone"])
+                        if spot is not None:
+                            d = math.dist(me["pos"][:2], spot)
+                            if 2.0 < d <= 40.0:
+                                act["move"] = [(spot[0] - me["pos"][0]) / d, (spot[1] - me["pos"][1]) / d]
+                                act["boost"] = me.get("energy", 0) >= 30 and d > 10 and not charging
+                                state += " cover"
         else:
             if self._shoot_drone(obs, weapons, act):
                 state = "drone"
@@ -1478,17 +1516,24 @@ class Bot:
                 state = "beam-ret"
             else:
                 self._maybe_early_reload(weapons, act)
-                bearing = self._face_bearing(mechs, me["pos"], now)
-                if bearing is not None:
-                    state = "face"
-                    act["aim"] = [bearing, 0.0]
-                elif self._shoot_crate(obs, weapons, act):
+                # Point 16: break crates when no mech is within 120 m and nobody hit us in 5 s.
+                near_threat = (any(m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed
+                                   and math.dist(m["pos"], me["pos"]) <= 120.0 for m in mechs)
+                               or (self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 5))
+                if USE_MORE_CUBES and not near_threat and self._shoot_crate(obs, weapons, act):
                     state = "crate"
                 else:
-                    has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
-                    if not has_laser and now < LATE_T:
-                        state = "scan"
-                        act["aim"] = [(now * 1.2) % math.tau, 0.0]
+                    bearing = self._face_bearing(mechs, me["pos"], now)
+                    if bearing is not None:
+                        state = "face"
+                        act["aim"] = [bearing, 0.0]
+                    elif self._shoot_crate(obs, weapons, act):
+                        state = "crate"
+                    else:
+                        has_laser = any(w and w["kind"] == "laser" for w in weapons[:2])
+                        if not has_laser and now < LATE_T:
+                            state = "scan"
+                            act["aim"] = [(now * 1.2) % math.tau, 0.0]
             if (self.is_finals and me.get("in_zone", True) and not act.get("boost")
                     and drop is None and movement not in ("cube", "roof-climb", "roof-walk")):
                 walk = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
@@ -1498,7 +1543,19 @@ class Bot:
                     act["move"] = [mx * scale, my * scale]
                     state += " silent"
 
-        holding_drop = movement.startswith("drop-hold")
+        # Point 17: head straight into next circle before shrink time runs out.
+        z = obs["zone"]
+        if USE_ZONE_EARLY and me.get("in_zone", True) and not holding_drop:
+            d_next = math.dist(me["pos"][:2], z["next_center"])
+            excess = d_next - max(z["next_radius"] - 10.0, 2.0)
+            secs_left = (z.get("shrink_end") or now) - now
+            speed = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
+            if excess > 0 and secs_left > 0 and excess / speed > 0.6 * secs_left and d_next > 1e-6:
+                act["move"] = [(z["next_center"][0] - me["pos"][0]) / d_next,
+                               (z["next_center"][1] - me["pos"][1]) / d_next]
+                act["boost"] = me.get("energy", 0) >= 30 and not charging
+                state += " zone-run"
+
         if movement != "roof-climb":
             protect_drop = holding_drop and drop is not None and (drop.get("progress") or 0) >= 2.5
             if not protect_drop:
@@ -1519,8 +1576,11 @@ class Bot:
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
-        mode_tag = "FFA " if self.is_finals else ""
-        mf.draw.label(f"{mode_tag}{movement} {state}" + (" chg" if charging else ""))
+        # Points 8 & 9: show Finals trip timestamp, HP %, and cube count (<= 80 chars).
+        mode_tag = f"FFA@{self.finals_t:.0f}s " if self.is_finals and self.finals_t is not None else ""
+        label = (f"{mode_tag}{movement} {state} hp{me['hp'] / me['max_hp']:.0%} c{me.get('cubes', 0)}"
+                 + (" chg" if charging else ""))
+        mf.draw.label(label[:80])
         return act
 
 
