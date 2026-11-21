@@ -1,4 +1,4 @@
-"""v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
+"""v43: v39 (4.73) + duel strafe vs laser holders (sideways, flip on their charge, steer away from other known mechs)."""
 import json
 import math
 import traceback
@@ -14,6 +14,8 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_DUEL_STRAFE = True      # v43: vs a laser holder within 150 m, move sideways (not backwards), flip when it starts charging,
+                            #      and pick the side that does not walk us toward other known mechs
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -211,6 +213,12 @@ def _point_to_segment_dist_sq(px, py, ax, ay, bx, by):
     return (px - qx) ** 2 + (py - qy) ** 2
 
 
+def brg_ok(sound, now, ux, uy):
+    """A recent sound that is not just our duel target (more than ~35 deg off its line)."""
+    heard, b = sound
+    return now - heard <= 2.0 and (math.cos(b) * ux + math.sin(b) * uy) < 0.82
+
+
 def _strafe_sign(now):
     return 1.0 if math.sin(now * 3.1) + 0.55 * math.sin(now * 5.3) >= 0.0 else -1.0
 
@@ -268,6 +276,8 @@ class Bot:
         self.last_near_sound = None
         self.short_until = -math.inf
         self.last_beam_threat = None
+        self.duel_flip = 1.0
+        self.duel_charging = {}
         self.pickups = {}
         self.cubes = {}
         self.cube_progress = (None, math.inf, 0.0)
@@ -1297,6 +1307,51 @@ class Bot:
                 return [rx, ry]
         return move
 
+    def _duel_strafe(self, me, target, mechs, zone, now, s_sign):
+        """Sideways move against a laser holder: their beam goes where they aimed, so sideways speed is what
+        makes it miss. Backing straight away keeps us on their aim line. Flip sides when they start charging,
+        and never pick the side that walks us toward another mech we know about."""
+        mx, my = me["pos"][0], me["pos"][1]
+        dx, dy = target["pos"][0] - mx, target["pos"][1] - my
+        dist = math.hypot(dx, dy)
+        ux, uy = dx / dist, dy / dist
+        tid = target.get("id")
+        was = self.duel_charging.get(tid, False)
+        now_charging = bool(target.get("charging"))
+        if now_charging and not was:
+            self.duel_flip = -self.duel_flip
+        self.duel_charging[tid] = now_charging
+        threats = []
+        for m in mechs:
+            if m.get("kind") != "mech" or m.get("id") == tid or not m.get("pos") or m.get("id") in self.killed:
+                continue
+            ox, oy = m["pos"][0] - mx, m["pos"][1] - my
+            od = math.hypot(ox, oy)
+            if 1e-6 < od <= 160.0:
+                threats.append((ox / od, oy / od, 1.5 if od <= 80.0 else 1.0))
+        for aid, (t_hit, brg) in self.last_hits.items():
+            if aid != tid and 0 <= aid < 16 and brg is not None and now - t_hit <= 3.0:
+                threats.append((math.cos(brg), math.sin(brg), 1.5))
+        if self.last_sound is not None and brg_ok(self.last_sound, now, ux, uy):
+            b = self.last_sound[1]
+            threats.append((math.cos(b), math.sin(b), 0.7))
+        out = 0.35 if dist < 30.0 else 0.0
+        best, best_cost = None, math.inf
+        pref = s_sign * self.duel_flip
+        for side in (pref, -pref):
+            px, py = -uy * side - ux * out, ux * side - uy * out
+            n = math.hypot(px, py)
+            px, py = px / n, py / n
+            cost = sum(w * max(0.0, px * tx + py * ty) for tx, ty, w in threats)
+            ahead = (mx + 8.0 * px, my + 8.0 * py)
+            if math.dist(ahead, zone["next_center"]) > zone["next_radius"] - 2.0:
+                cost += 5.0
+            if side != pref:
+                cost += 0.3
+            if cost < best_cost:
+                best, best_cost = [px, py], cost
+        return best
+
     def _apply_unstick(self, obs, act, charging):
         now = obs["t"]
         me = obs["self"]
@@ -1493,6 +1548,11 @@ class Bot:
                         act["boost"] = me.get("energy", 0) >= 40 and dist > 80 and not charging
                         pushing = True
                         state += " push"
+                elif (USE_DUEL_STRAFE and not finishing and me.get("in_zone", True)
+                      and "laser" in (target.get("weapons") or [])
+                      and 1e-6 < math.dist(me["pos"][:2], target["pos"][:2]) <= 150.0):
+                    act["move"] = self._duel_strafe(me, target, mechs, obs["zone"], now, s_sign)
+                    state += " duel"
                 elif movement in ("zone", "drop-walk"):
                     act["move"] = self._rotate_move_safe(act["move"], s_sign * DUEL_STRAFE_RAD,
                                                          me["pos"][:2], obs["zone"])
