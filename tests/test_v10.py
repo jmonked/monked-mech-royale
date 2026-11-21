@@ -424,6 +424,39 @@ def d4_long_hold_never_releases_outside_body():
     assert a["fire"][LASER] is False, "1.3 deg (2.3 m) is on the body: take it"
 
 
+# ----------------------------------------------------------------- v11: reset after a kill
+KILL = {"type": "kill", "target": 9}
+
+
+@test
+def e1_heal_to_85_after_kill():
+    b = bot()
+    b.act(make_obs(t=20.0, hp=900, events=[KILL]))
+    assert b.healing, "64% hp right after a kill: reset before the next fight"
+
+
+@test
+def e2_passive_nearby_mech_does_not_block_reset():
+    b = bot()
+    a = b.act(make_obs(t=20.0, hp=900, events=[KILL], mechs=[mech(5, 30, 0)]))
+    assert b.healing and a["fire"] == [False, False]
+
+
+@test
+def e3_close_attacker_still_fought():
+    b = bot()
+    a = b.act(make_obs(t=20.0, hp=900, events=[KILL, hit(5)], mechs=[mech(5, 30, 0)], aim=(0.0, 0.0)))
+    assert not b.healing and a["fire"][1] is True
+
+
+@test
+def e4_reset_window_ends():
+    b = bot()
+    b.act(make_obs(t=20.0, hp=1400, events=[KILL]))
+    b.act(make_obs(t=40.0, hp=900))
+    assert not b.healing
+
+
 def run():
     failed = 0
     for fn in TESTS:

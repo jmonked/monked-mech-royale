@@ -9,6 +9,7 @@ import mechfight as mf
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
+RESET_S = 15.0         # after a kill: heal up to 85% before taking the next fight
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
 HEAL_FIGHTBACK_S = 2.0  # while healing, keep shooting an attacker that hit us this recently
 
@@ -115,6 +116,7 @@ class Bot:
         self.hunt_progress = {}
         self.previous_move = [0.0, 0.0]
         self.healing = False
+        self.last_kill_t = -math.inf
         self.cover_spot = None
         self.cover_threat = None
         self.cover_time = -math.inf
@@ -145,14 +147,20 @@ class Bot:
     def _heal(self, obs, act):
         me = obs["self"]
         pos = me["pos"]
-        threshold = 0.85 if self.healing else 0.5
+        resetting = obs["t"] - self.last_kill_t <= RESET_S
+        threshold = 0.85 if self.healing or resetting else 0.5
         if not me["in_zone"] or me["hp"] >= threshold * me["max_hp"]:
             self.healing = False
             return False
 
         nearest = min((m["pos"] for m in obs.get("mechs") or [] if m.get("kind") == "mech" and m.get("pos")),
                       key=lambda p: math.dist(pos, p), default=None)
-        if nearest is not None and math.dist(pos, nearest) <= self.near_range:
+        # Right after a kill, only a mech that is actually shooting us (not one merely nearby) stops the heal.
+        close_attacker = any(
+            m.get("kind") == "mech" and m.get("pos") and math.dist(pos, m["pos"]) <= self.near_range
+            and obs["t"] - self.last_hits.get(m.get("id"), (-math.inf,))[0] <= THREAT_RECENT_S
+            for m in obs.get("mechs") or [])
+        if nearest is not None and math.dist(pos, nearest) <= self.near_range and (close_attacker or not resetting):
             self.healing = False
             return False
 
@@ -553,7 +561,10 @@ class Bot:
         now = obs["t"]
         events = obs.get("events") or []
         self._remember_damage(events, now)
-        self.killed.update(e["target"] for e in events if e.get("type") == "kill" and "target" in e)
+        kills = [e["target"] for e in events if e.get("type") == "kill" and "target" in e]
+        if kills:
+            self.killed.update(kills)
+            self.last_kill_t = now
         self._remember_sounds(obs.get("sounds") or [], now)
         me = obs["self"]
         weapons = me.get("weapons") or []
