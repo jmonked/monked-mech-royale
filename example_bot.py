@@ -705,7 +705,7 @@ class Bot:
     def _drop_goal(self, obs, healing):
         me, zone, now = obs["self"], obs["zone"], obs["t"]
         healthy = me["hp"] >= 0.75 * me["max_hp"]
-        max_drop_dist = DROP_HEALTHY_DIST if healthy else 250.0
+        max_drop_dist = 260.0
         best = None
         best_distance = math.inf
         for drop in obs.get("drops") or []:
@@ -882,9 +882,25 @@ class Bot:
             self.hunt_progress.pop(hunt_id, None)
             dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
             distance = math.hypot(dx, dy)
-            act.update(move=[0.0, 0.0] if holding_drop else [dx / distance, dy / distance],
+            if holding_drop:
+                # Orbit inside the ring (target radius r_orb) instead of standing still.
+                r_orb = max(drop["radius"] - 3.0, 2.5)
+                rx, ry = -dx, -dy
+                rd = distance
+                if rd < 1.0:
+                    move = [1.0, 0.0]
+                else:
+                    sgn = _strafe_sign(now)
+                    radial = max(-0.8, min(0.8, (r_orb - rd) / 3.0))
+                    mx = sgn * (-ry / rd) + radial * (rx / rd)
+                    my = sgn * (rx / rd) + radial * (ry / rd)
+                    ml = math.hypot(mx, my)
+                    move = [mx / ml, my / ml] if ml > 1e-6 else [rx / rd, ry / rd]
+            else:
+                move = [dx / distance, dy / distance]
+            act.update(move=move,
                        aim=[yaw, 0.0], boost=not holding_drop and me["energy"] >= 30 and distance > 30,
-                       jump=not holding_drop and obs["tick"] % 40 == 0)
+                       jump=obs["tick"] % 40 == 0)
             return f"drop-hold {drop['progress']:.1f}/{drop['capture_s']:g}s" if holding_drop else "drop-walk"
         elif hunt_id is not None:
             best, since = self.hunt_progress.get(hunt_id, (math.inf, now))
