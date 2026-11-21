@@ -892,7 +892,7 @@ class Bot:
                 if me.get("energy", 0) >= 15:
                     jump = bool(me.get("grounded", False))
                     boost = True
-        elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:
+        elif (now >= 150.0 or self.is_finals) and has_laser and not outside and self.roofs:
             on_roof = self._current_roof(me["pos"])
             if on_roof is not None and math.dist(on_roof[1], zone["next_center"]) <= zone["next_radius"] - 4.0:
                 self.roof_goal = None
