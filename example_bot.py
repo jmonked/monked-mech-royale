@@ -16,6 +16,7 @@ KILL_LOOT_S = 25.0       # ...within this long after the kill
 PUSH_RANGE = 230.0     # push a weaker, isolated target from this far...
 PUSH_STOP = 35.0       # ...until this close
 PUSH_MIN_HP = 0.6      # only while we have this much HP
+PUSH_HP_RATIO = 0.85   # push a target with at most this share of our HP (v29: 0.7) or 1+ fewer cubes (v29: 2)
 PUSH_CLEAR = 80.0      # and no other mech is this close to us
 LATE_T = 230.0         # from the 3rd zone shrink on: no more chasing, let the zone and the squad thin out
 LASER_LEAD_S = 0.1     # the beam goes out about one decision after we command the aim
@@ -580,7 +581,7 @@ class Bot:
         if not PUSH_STOP <= distance <= PUSH_RANGE:
             return False
         hp, cubes = target.get("hp"), target.get("cubes") or 0
-        weaker = (hp is not None and hp <= 0.7 * me["hp"]) or cubes + 2 <= (me.get("cubes") or 0)
+        weaker = (hp is not None and hp <= PUSH_HP_RATIO * me["hp"]) or cubes + 1 <= (me.get("cubes") or 0)
         if not weaker or math.dist(target["pos"][:2], zone["next_center"]) > zone["next_radius"]:
             return False
         # Only a 1v1: nobody else close to us.

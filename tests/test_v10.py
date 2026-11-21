@@ -652,6 +652,14 @@ def p4_push_smaller_by_cubes():
     assert a["move"][0] > 0.99, a["move"]
 
 
+@test
+def p5_push_slightly_weaker_target():
+    b = bot()
+    o = make_obs(t=60.0, mechs=[mech(5, 120, 0, hp=1150)], events=[hit(5)]); o["zone"]["next_center"] = [0, -100]
+    a = b.act(o)
+    assert a["move"][0] > 0.99, a["move"]
+
+
 def run():
     failed = 0
     for fn in TESTS:
