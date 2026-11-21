@@ -79,22 +79,20 @@ class Bot:
         config = hello.get("config") or {}
         self.reach = _stat(config.get("loot") or {}, "pickup_radius", 4)
         self.near_range = _stat(config.get("vision") or {}, "near_range", 45)
-        self.half_fov = math.radians(_stat(config.get("vision") or {}, "fov_deg", 120) / 2)
         cubes = config.get("cubes") or {}
         self.cube_radius = _stat(cubes, "pickup_radius", 3.5)
         self.cube_cap = _stat(cubes, "stat_cap", 10)
-        self.gun = (config.get("weapons") or {}).get("gun") or {}
-        self.gun_speed = _stat(self.gun, "speed", 252)
-        self.gun_range = _stat(self.gun, "range", 230)
+        gun = (config.get("weapons") or {}).get("gun") or {}
+        self.gun_speed = _stat(gun, "speed", 252)
+        self.gun_range = _stat(gun, "range", 230)
         self.laser = (config.get("weapons") or {}).get("laser") or {}
         self.lightning = (config.get("weapons") or {}).get("lightning") or {}
         self.muzzle_height = _stat(config.get("mech") or {}, "muzzle_height", 7)
+        self.walk_speed = _stat(config.get("mech") or {}, "walk_speed", 11.7)
+        self.drop_id = None
+        self.drop_retry_at = {}
         self.last_hits = {}
         self.target_id = None
-        self.no_target_since = None
-        self.chase_id = None
-        self.chase_start = 0.0
-        self.chase_cooldown = {}
         self.killed = set()
         self.last_damage_bearing = None
         self.last_mech_bearing = None
@@ -178,6 +176,7 @@ class Bot:
             if math.dist(ahead, zone["next_center"]) <= zone["next_radius"]:
                 move = [ux, uy]
         act.update(move=move, boost=boost, aim=[yaw, 0.0])
+        mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%}")
         return True
 
     def _remember_damage(self, events, now):
@@ -193,39 +192,15 @@ class Bot:
                     self.last_mech_bearing = (now, bearing)
 
     def _choose_target(self, mechs, pos, now, weapons):
-        profiles = []
-        gun_range = self.gun_range
-        laser_range = None
-        for weapon in weapons:
-            if not weapon:
-                continue
-            stats = weapon.get("stats") or {}
-            kind = weapon["kind"]
-            if kind == "gun":
-                stats = self.gun | stats
-                gun_range = reach = _stat(stats, "range", self.gun_range)
-                mag = _stat(stats, "mag", 12)
-                damage = mag * _stat(stats, "damage", 45)
-                cycle = mag * _stat(stats, "cooldown", 0.24) + _stat(stats, "reload", 2.4)
-            elif kind == "laser":
-                stats = self.laser | stats
-                laser_range = reach = _stat(stats, "range", 280)
-                damage = _stat(stats, "damage", 315)
-                cycle = _stat(stats, "charge", 0.75) + _stat(stats, "cooldown", 1.65)
-            elif kind == "lightning":
-                stats = self.lightning | stats
-                reach = 0.9 * _stat(stats, "range", 45)
-                damage = _stat(stats, "damage", 60)
-                cycle = _stat(stats, "cooldown", 0.25)
-            else:
-                continue
-            if cycle > 0:
-                profiles.append((reach, damage / cycle))
-        reach = laser_range if laser_range is not None else gun_range
+        laser = next((w for w in weapons if w and w["kind"] == "laser"), None)
+        if laser:
+            reach = _stat(laser.get("stats") or {}, "range", _stat(self.laser, "range", 280))
+        else:
+            gun = next((w for w in weapons if w and w["kind"] == "gun"), None) or {}
+            reach = _stat(gun.get("stats") or {}, "range", self.gun_range)
 
         best = current = None
-        best_rank = (math.inf, True, math.inf)
-        current_ttk = math.inf
+        best_rank = None
         for mech in mechs:
             mech_id = mech.get("id")
             if mech.get("kind") != "mech" or mech_id is None or mech_id in self.killed or not mech.get("pos"):
@@ -235,44 +210,60 @@ class Bot:
             recent = hit is not None and now - hit[0] <= 8.0
             hp, max_hp = mech.get("hp"), mech.get("max_hp")
             wounded = hp is not None and max_hp is not None and hp <= 0.5 * max_hp
-            leashed = mech_id == self.target_id and distance <= gun_range
-            if not (recent or distance <= self.near_range or (wounded and distance <= reach) or leashed):
+            if not (recent or distance <= self.near_range or (wounded and distance <= reach)):
                 continue
-            dps = sum(rate for radius, rate in profiles if distance <= radius)
-            health = _stat(mech, "hp", _stat(mech, "max_hp", 1400))
-            ttk = health / dps if dps else math.inf
             if mech_id == self.target_id:
-                current, current_ttk = mech, ttk
-            rank = (ttk, not recent, distance)
-            if rank < best_rank:
+                current = mech
+            if hp is None:
+                rank = (math.inf, 0, distance - (1.0 if recent else 0.0))
+            else:
+                rank = (hp, not recent, distance)
+            if best_rank is None or rank < best_rank:
                 best, best_rank = mech, rank
 
-        ttk = best_rank[0]
-        if current is not None and ttk >= 0.6 * current_ttk:
-            best, ttk = current, current_ttk
+        if current is not None:
+            hp, best_hp = current.get("hp"), best.get("hp")
+            if hp is None or best_hp is None or best_hp >= 0.6 * hp:
+                best = current
         self.target_id = best["id"] if best is not None else None
-        return best, ttk, reach
+        return best
 
-    def _chase_goal(self, obs, target, ttk, reach):
-        now, me, zone = obs["t"], obs["self"], obs["zone"]
-        if self.chase_id is not None and now >= self.chase_start + 6:
-            self.chase_cooldown[self.chase_id] = self.chase_start + 16
-            self.chase_id = None
-        if (target is not None and me["in_zone"] and now >= self.chase_cooldown.get(target["id"], 0)
-                and math.dist(target["pos"][:2], zone["next_center"]) <= zone["next_radius"]):
-            pos, dest = me["pos"], target["pos"]
-            distance = math.dist(pos, dest)
-            yaw = math.atan2(dest[1] - pos[1], dest[0] - pos[0])
-            lost_sight = distance > self.near_range and abs(math.remainder(yaw - me["aim"][0], math.tau)) > self.half_fov
-            weak = _stat(target, "hp", math.inf) <= 0.4 * _stat(target, "max_hp", 1400)
-            if (weak or ttk <= 2.5) and (distance > 0.8 * reach or lost_sight):
-                if self.chase_id != target["id"]:
-                    self.chase_id, self.chase_start = target["id"], now
-                return dest
-        self.chase_id = None
-        return None
+    def _drop_goal(self, obs, healing):
+        me, zone, now = obs["self"], obs["zone"], obs["t"]
+        best = None
+        best_distance = math.inf
+        for drop in obs.get("drops") or []:
+            drop_id = drop["id"]
+            if now < self.drop_retry_at.get(drop_id, -math.inf):
+                continue
+            xy = drop["pos"][:2]
+            distance = math.dist(me["pos"][:2], xy)
+            active = drop_id == self.drop_id
+            in_ring = distance <= drop["radius"] - 2
+            if active and in_ring:
+                # Once in place, keep holding even if a rival contests the capture.
+                return drop
+            contested = any(m.get("kind") == "mech" and m["id"] != me["id"]
+                            and math.dist(m["pos"][:2], xy) <= drop["radius"] + 12
+                            for m in obs.get("mechs") or [])
+            if contested or (not in_ring and me["hp"] < 0.35 * me["max_hp"]):
+                if active:
+                    self.drop_retry_at[drop_id] = now + 15
+                continue
+            if ((healing and not active) or not me["in_zone"] or distance > 250
+                    or math.dist(xy, zone["next_center"]) > zone["next_radius"] - 4
+                    or (not active and me["hp"] >= 0.75 * me["max_hp"])):  # only go when hurt
+                continue
+            # Time departure once. Boosting toward the drop can put us ahead of schedule.
+            speed = _stat(me.get("stats") or {}, "walk_speed", self.walk_speed)
+            if not active and drop["lands_in"] > distance / speed + 3:
+                continue
+            if distance < best_distance:
+                best, best_distance = drop, distance
+        self.drop_id = best["id"] if best is not None else None
+        return best
 
-    def _cube_goal(self, obs, max_distance):
+    def _cube_goal(self, obs, max_distance, *, pursuing_drop=False):
         me = obs["self"]
         pos = me["pos"]
         zone = obs["zone"]
@@ -287,8 +278,8 @@ class Bot:
                                      or (cube_id not in visible and distance <= 4)):
                 del self.cubes[cube_id]
                 continue
-            if (me.get("cubes", 0) < self.cube_cap and height <= 3.5 and distance <= max_distance
-                    and cube_id not in self.unreachable
+            if (not pursuing_drop and me.get("cubes", 0) < self.cube_cap and height <= 3.5
+                    and distance <= max_distance and cube_id not in self.unreachable
                     and math.dist(location[:2], zone["next_center"]) <= zone["next_radius"]):
                 options.append((distance, cube_id))
 
@@ -304,7 +295,7 @@ class Bot:
         self.cube_progress = (None, math.inf, now)
         return None
 
-    def _movement(self, obs, slot_empty, act, chase_goal):
+    def _movement(self, obs, slot_empty, act, drop=None):
         me = obs["self"]
         xy = me["pos"][:2]
         zone = obs["zone"]
@@ -344,17 +335,20 @@ class Bot:
                     state = "laser hunt"
                     goal = location
                     boost = outside or (me["energy"] >= 30 and distance > 25)
-        # Preserve v4's default facing even when a cube diverts the legs.
+        # Preserve the default facing even when collecting a drop or cube.
         yaw = math.atan2(goal[1] - xy[1], goal[0] - xy[0])
         move_yaw = yaw
-        cube = self._cube_goal(obs, 15 if hunt_id is not None else 40)
-        if chase_goal is not None:
-            state = "chase"
-            move_yaw = math.atan2(chase_goal[1] - xy[1], chase_goal[0] - xy[0])
-            boost = me["energy"] >= 30
-            self.cube_progress = (None, math.inf, obs["t"])
+        cube = self._cube_goal(obs, 15 if hunt_id is not None else 40, pursuing_drop=drop is not None)
+        if drop is not None:
             self.hunt_progress.pop(hunt_id, None)
-        elif cube is not None:
+            dx, dy = drop["pos"][0] - xy[0], drop["pos"][1] - xy[1]
+            distance = math.hypot(dx, dy)
+            holding = distance <= drop["radius"] - 2
+            act.update(move=[0.0, 0.0] if holding else [dx / distance, dy / distance],
+                       aim=[yaw, 0.0], boost=not holding and me["energy"] >= 30 and distance > 30,
+                       jump=not holding and obs["tick"] % 40 == 0)
+            return f"drop {drop['progress']:.1f}/{drop['capture_s']:g}s"
+        if cube is not None:
             location, distance = cube
             state = "cube"
             move_yaw = math.atan2(location[1] - xy[1], location[0] - xy[0])
@@ -458,33 +452,20 @@ class Bot:
         if choices:
             act["pick"] = min(range(len(choices)),
                               key=lambda i: UPGRADE_RANK.get(choices[i].get("id"), len(UPGRADE_RANK)))
-        target, ttk, reach = self._choose_target(mechs, me["pos"], now, weapons)
-        if target is not None:
-            self.no_target_since = None
-        else:
-            if self.no_target_since is None:
-                self.no_target_since = now
-            if now >= self.no_target_since + 0.5:
-                for weapon in weapons:
-                    if weapon and weapon["kind"] == "gun" and weapon.get("reload") == 0:
-                        mag = _stat(weapon.get("stats") or {}, "mag", _stat(self.gun, "mag", 12))
-                        if _stat(weapon, "ammo", mag) <= 0.6 * mag:  # top up only when 7 or fewer rounds left
-                            act["reload"] = True
+        target = self._choose_target(mechs, me["pos"], now, weapons)
         # Don't break off to heal when the target is nearly dead and weaker than us: take the kill.
         finishing = (target is not None and target.get("hp") is not None and target.get("max_hp")
                      and target["hp"] <= 0.3 * target["max_hp"] and target["hp"] < me["hp"])
         healing = not finishing and self._heal(obs, act)
-        chase_goal = self._chase_goal(obs, None if healing else target, ttk, reach)
-        ttk_label = f" ttk {ttk:.1f}" if target is not None else ""
+        drop = self._drop_goal(obs, healing)
         if healing:
-            mf.draw.label(f"heal {me['hp'] / me['max_hp']:.0%}" + ttk_label)
             return act
-        movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act, chase_goal)
+        movement = self._movement(obs, len(weapons) < 2 or weapons[1] is None, act, drop)
         state = "idle"
         charging = False
         if target is not None:
             hp = target.get("hp")
-            state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}" + ttk_label
+            state = f"fight {target['id']} hp {round(hp) if hp is not None else '?'}"
             charging = self._fight(me, weapons, target, act)
         else:
             bearing = self._face_bearing(mechs, me["pos"], now)
