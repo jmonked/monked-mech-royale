@@ -517,6 +517,99 @@ class Bot:
             return None, False
         return best_vec, (not charging_self and me.get("energy", 0) >= 35 and best_dist <= 160.0)
 
+    def _aggregate_threat_move(self, obs, intended, stock_move):
+        me = obs["self"]
+        if not me.get("in_zone", True):
+            return None
+        now = obs["t"]
+        bearings = {mid: bearing for mid, (t_hit, bearing) in self.last_hits.items()
+                    if 0 <= mid < 16 and mid not in self.killed and now - t_hit <= THREAT_RECENT_S}
+        actors = [m for m in obs.get("mechs") or []
+                  if m.get("kind") == "mech" and m.get("pos") and m["id"] not in self.killed
+                  and (m["id"] in bearings or m.get("charging"))]
+        if len(bearings.keys() | {m["id"] for m in actors}) < 2:
+            return None
+
+        x, y, z = me["pos"]
+        scale = self._scale(me)
+        width = self.mech_radius * scale + 3.0
+        half_height = self.half_height * scale
+        height = half_height + 1.0
+        laser_range = _stat(self.laser, "range", 280.0)
+        rays = []
+        for m in actors:
+            mid = m["id"]
+            mx, my, mz = m["pos"]
+            dx, dy = x - mx, y - my
+            if mid in bearings and math.hypot(dx, dy) > 1e-6:
+                bearings[mid] = math.atan2(-dy, -dx)
+            aim = m.get("aim")
+            if not m.get("charging") or not aim or None in aim:
+                continue
+            yaw, pitch = aim
+            ux, uy = math.cos(yaw), math.sin(yaw)
+            along = ux * dx + uy * dy
+            side = ux * dy - uy * dx
+            rise = math.tan(pitch)
+            beam_z = mz + self.muzzle_height * self._scale(m) + along * rise
+            vertical = beam_z - (z + half_height)
+            if (not 0.0 < along <= laser_range * math.cos(pitch)
+                    or abs(side) >= width or abs(vertical) >= height
+                    or self._target_blocked(me, m)):
+                continue
+            bearings[mid] = math.atan2(-dy, -dx)
+            rays.append((ux, uy, side, vertical, rise))
+
+        sources = [(math.cos(b), math.sin(b)) for b in bearings.values() if b is not None]
+        if len(sources) < 2 or self._current_roof(me["pos"]) is not None:
+            return None
+
+        # Eight evenly spaced probes around the retreat bearing, plus the two stock intents.
+        sx = sum(ux for ux, _ in sources)
+        sy = sum(uy for _, uy in sources)
+        if math.hypot(sx, sy) < 1e-6:
+            sx, sy = sources[0]
+        away = math.atan2(-sy, -sx)
+        speed = math.hypot(*stock_move) or 1.0
+        candidates = [stock_move, intended]
+        for i in range(8):
+            angle = away + i * math.pi / 4
+            candidates.append((speed * math.cos(angle), speed * math.sin(angle)))
+        zone = obs["zone"]
+        cx, cy = zone["next_center"]
+        distance = math.hypot(x - cx, y - cy)
+        zone_limit = max(zone["next_radius"], distance)
+        if distance > zone["next_radius"]:
+            candidates.append((speed * (cx - x) / distance, speed * (cy - y) / distance))
+
+        ranked = []
+        for vx, vy in candidates:
+            dx, dy = 5.0 * vx, 5.0 * vy
+            tx, ty = x + dx, y + dy
+            if math.hypot(tx - cx, ty - cy) > zone_limit:
+                continue
+            separation = [-(vx * ux + vy * uy) for ux, uy in sources]
+            score = 0.5 * (min(separation) + sum(separation) / len(separation))
+            score += 0.2 * (vx * intended[0] + vy * intended[1])
+            if rays:
+                exposure = []
+                for ux, uy, side, vertical, rise in rays:
+                    lateral_step = ux * dy - uy * dx
+                    vertical_step = (ux * dx + uy * dy) * rise
+                    # Sample both the approach and the endpoint against each current beam line.
+                    for fraction in (0.5, 1.0):
+                        miss = max(abs(side + fraction * lateral_step) / width,
+                                   abs(vertical + fraction * vertical_step) / height)
+                        exposure.append(max(0.0, 1.0 - miss))
+                score -= 2.0 * (max(exposure) + sum(exposure) / len(exposure))
+            ranked.append((score, vx, vy, tx, ty))
+
+        for _, vx, vy, tx, ty in sorted(ranked, key=lambda probe: probe[0], reverse=True):
+            if (not self._point_blocked_2d(tx, ty, z)
+                    and not self._building_blocked((x, y, z + 1.2), (tx, ty, z + 1.2))):
+                return [vx, vy]
+        return [0.0, 0.0]
+
     def _find_cover(self, xy, threat, zone):
         closest = None
         best_distance = math.inf
@@ -1610,12 +1703,18 @@ class Bot:
                         act["boost"] = True
                     state += " dodge"
                 elif not holding_drop and not finishing:
+                    intended = act["move"]
                     l_vec, l_boost = self._laser_sidestep(obs, charging)
                     if l_vec is not None:
                         act["move"] = l_vec
                         if l_boost:
                             act["boost"] = True
                         state += " ldodge"
+                    if movement != "roof-walk":
+                        aggregate = self._aggregate_threat_move(obs, intended, act["move"])
+                        if aggregate is not None:
+                            act["move"] = aggregate
+                            state += " aggregate"
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
