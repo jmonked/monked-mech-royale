@@ -8,7 +8,7 @@ import mechfight as mf
 
 
 # --- v34 switches: set False to turn a change off ---
-USE_RELOAD_COVER = True      # point 14: step behind cover while gun reloads and laser is busy
+USE_RELOAD_COVER = False     # point 14: step behind cover while gun reloads and laser is busy
 USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holder without a laser
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
