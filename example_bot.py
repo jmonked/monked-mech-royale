@@ -1,6 +1,7 @@
 """v39: v34 (4.67) + short-effect laser guard, near-sound facing (no blind fire), and third-party cover."""
 import json
 import math
+import time
 import traceback
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import mechfight as mf
 
 # --- v34 switches: set False to turn a change off ---
 USE_RELOAD_COVER = True      # point 14: step behind cover while gun reloads and laser is busy
+USE_MULTI_COVER = True       # v58: cover spots scored against every recent attacker, not one threat
 USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holder without a laser
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
@@ -517,7 +519,7 @@ class Bot:
             return None, False
         return best_vec, (not charging_self and me.get("energy", 0) >= 35 and best_dist <= 160.0)
 
-    def _find_cover(self, xy, threat, zone):
+    def _find_cover_legacy(self, xy, threat, zone):
         closest = None
         best_distance = math.inf
         for center, radius, ring, _holes, _base, _top in self.buildings:
@@ -535,6 +537,154 @@ class Bot:
                     and _crosses_ring(threat, spot, ring)):
                 closest, best_distance = spot, distance
         return closest
+
+    def _find_multi_cover(self, me, mechs, threat, zone, now, keep_los_target=None, max_dist=45.0):
+        """v58: pick a nearby building corner/edge that hides us from the most recent attackers.
+        Falls back to v39's single-threat cover when data is missing or nothing beats it."""
+        xy = me["pos"][:2]
+        if not USE_MULTI_COVER:
+            return self._find_cover_legacy(xy, threat, zone)
+        legacy = self._find_cover_legacy(xy, threat, zone)
+        try:
+            spot = self._multi_cover_spot(me, mechs, threat, zone, now, keep_los_target, max_dist, legacy)
+        except Exception:
+            spot = None
+        return legacy if spot is None else spot
+
+    def _multi_cover_spot(self, me, mechs, threat, zone, now, keep_los_target, max_dist, legacy):
+        if not self.buildings or not self.los_buildings or threat is None:
+            return None
+        nc, nr = zone.get("next_center"), zone.get("next_radius")
+        if nc is None or nr is None:
+            return None
+        mx, my, mz = me["pos"]
+        xy = (mx, my)
+        my_id = me.get("id")
+        mech_by_id = {m.get("id"): m for m in mechs
+                      if m.get("kind") == "mech" and m.get("pos") and m.get("id") not in self.killed}
+
+        def chest(m):
+            return m["pos"][2] + self.half_height * self._scale(m)
+
+        # Threats: (x, y, z, weight), deduplicated within 8 m keeping the highest weight, top 4 by weight.
+        threats = []
+
+        def add(x, y, z, w):
+            for i, (tx, ty, tz, tw) in enumerate(threats):
+                if math.hypot(tx - x, ty - y) <= 8.0:
+                    if w > tw:
+                        threats[i] = (x, y, z, w)
+                    return
+            threats.append((x, y, z, w))
+
+        own_z = mz + self.half_height * self._scale(me)
+        for aid, (t_hit, brg) in list(self.last_hits.items()):
+            if not (isinstance(aid, int) and 0 <= aid < 16) or aid == my_id or aid in self.killed or now - t_hit > 3.0:
+                continue
+            m = mech_by_id.get(aid)
+            if m is not None:
+                add(m["pos"][0], m["pos"][1], chest(m), 3.0)
+            else:
+                tr = self.tracks.get(aid)
+                if tr is not None and now - tr[0] <= 3.0:
+                    add(tr[1][0], tr[1][1], tr[1][2] + self.half_height, 3.0)
+                elif brg is not None:
+                    add(mx + 80.0 * math.cos(brg), my + 80.0 * math.sin(brg), own_z, 3.0)
+        add(threat[0], threat[1], own_z, 2.5)
+        for m in sorted(mech_by_id.values(), key=lambda q: math.dist(q["pos"], me["pos"])):
+            if m.get("id") == my_id or math.dist(m["pos"][:2], xy) > 160.0:
+                continue
+            add(m["pos"][0], m["pos"][1], chest(m), 1.0)
+        threats.sort(key=lambda q: -q[3])
+        threats = threats[:4]
+        if not any(q[3] >= 2.5 for q in threats):
+            return None
+
+        t_start = time.perf_counter()
+
+        # Per-ray building lists: a ray from a threat to a spot within max_dist of us stays inside the
+        # corridor around the us->threat segment, so only buildings in that corridor can block it.
+        def corridor(px, py, pad):
+            return [b for b in self.los_buildings
+                    if _point_to_segment_dist_sq(b[0][0], b[0][1], mx, my, px, py) <= (b[1] + pad) ** 2]
+
+        near_me = corridor(mx, my, max_dist)
+        threat_lists = [corridor(q[0], q[1], max_dist) for q in threats]
+
+        def blocked(a, b, blds):
+            lo, hi = min(a[2], b[2]), max(a[2], b[2])
+            for center, radius, ring, holes, base, top in blds:
+                if top <= lo or base >= hi:
+                    continue
+                if _point_to_segment_dist_sq(center[0], center[1], a[0], a[1], b[0], b[1]) > radius * radius:
+                    continue
+                if _crosses_prism_3d(a, b, ring, holes, base, top):
+                    return True
+            return False
+
+        # Candidates ~4 m outside corners and long edges of nearby cover buildings (no pathfinding).
+        cands = []
+        for center, radius, ring, _holes, _base, _top in self.buildings:
+            if math.hypot(center[0] - mx, center[1] - my) - radius > max_dist:
+                continue
+            n = len(ring)
+            for k in range(n):
+                vx, vy = ring[k]
+                ox, oy = vx - center[0], vy - center[1]
+                ol = math.hypot(ox, oy)
+                if ol > 1e-6:
+                    cands.append((vx + 4.0 * ox / ol, vy + 4.0 * oy / ol))
+                bx, by = ring[(k + 1) % n]
+                ex, ey = bx - vx, by - vy
+                el = math.hypot(ex, ey)
+                if el >= 12.0:
+                    hx, hy = (vx + bx) * 0.5, (vy + by) * 0.5
+                    nx_, ny_ = -ey / el, ex / el
+                    if nx_ * (hx - center[0]) + ny_ * (hy - center[1]) < 0:
+                        nx_, ny_ = -nx_, -ny_
+                    cands.append((hx + 4.0 * nx_, hy + 4.0 * ny_))
+        cands = sorted(c for c in ((math.hypot(cx - mx, cy - my), cx, cy) for cx, cy in cands) if c[0] <= max_dist)[:24]
+        if not cands:
+            return None
+
+        enemies = [m["pos"][:2] for m in mech_by_id.values() if m.get("id") != my_id]
+        keep = keep_list = None
+        if keep_los_target is not None and keep_los_target.get("pos"):
+            keep = (keep_los_target["pos"][0], keep_los_target["pos"][1], chest(keep_los_target))
+            keep_list = corridor(keep[0], keep[1], max_dist)
+
+        def score(px, py, walk):
+            hidden = [q[3] for q, blds in zip(threats, threat_lists) if blocked((q[0], q[1], q[2]), (px, py, own_z), blds)]
+            s = 10.0 * sum(hidden)
+            if keep is not None and not blocked((px, py, own_z), keep, keep_list):
+                s += 6.0
+            s -= 0.18 * walk
+            if any(math.hypot(px - ex, py - ey) <= 30.0 for ex, ey in enemies):
+                s -= 8.0
+            return s, max(hidden, default=0.0)
+
+        best = None
+        for walk, cx, cy in cands:
+            if time.perf_counter() - t_start > 0.008:   # hard 8 ms budget; keep the best found so far
+                break
+            if math.hypot(cx - nc[0], cy - nc[1]) > nr - 4.0:
+                continue
+            if self._point_blocked_2d(cx, cy, mz):
+                continue
+            if blocked((mx, my, mz + 1.3), (cx, cy, mz + 1.3), near_me):
+                continue
+            s, top_w = score(cx, cy, walk)
+            if top_w < 2.5:
+                continue
+            if best is None or s > best[0]:
+                best = (s, (cx, cy))
+        if best is None:
+            return None
+        if legacy is not None:
+            legacy_score, _ = score(legacy[0], legacy[1], math.dist(xy, legacy))
+            if legacy_score >= best[0]:
+                return None
+        return best[1]
 
     def _heal(self, obs, act):
         me = obs["self"]
@@ -577,7 +727,7 @@ class Bot:
             self.cover_spot = self.cover_threat = None
         elif (not self.healing or self.cover_threat is None or now - self.cover_time >= 1
               or math.dist(threat, self.cover_threat) > 15):
-            self.cover_spot = self._find_cover(xy, threat, zone)
+            self.cover_spot = self._find_multi_cover(me, obs.get("mechs") or [], threat, zone, now)
             self.cover_time, self.cover_threat = now, threat
         self.healing = True
         move, boost = [0.0, 0.0], False
@@ -1519,7 +1669,7 @@ class Bot:
                         act["boost"] = False
                         state += " tp-cover"
                 else:
-                    spot = self._find_cover(me["pos"][:2], tp_threat, obs["zone"])
+                    spot = self._find_multi_cover(me, mechs, tp_threat, obs["zone"], now, keep_los_target=target)
                     if spot is not None:
                         d = math.dist(me["pos"][:2], spot)
                         if 2.0 < d <= 45.0:
@@ -1543,7 +1693,7 @@ class Bot:
                             act["boost"] = False
                             state += " cover"
                     else:
-                        spot = self._find_cover(me["pos"][:2], target["pos"][:2], obs["zone"])
+                        spot = self._find_multi_cover(me, mechs, target["pos"][:2], obs["zone"], now, max_dist=40.0)
                         if spot is not None:
                             d = math.dist(me["pos"][:2], spot)
                             if 2.0 < d <= 40.0:
