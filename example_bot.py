@@ -14,6 +14,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_PUSH_THREAT_GATE = True  # preserve safer movement when a second threat can punish a push
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -1255,6 +1256,35 @@ class Bot:
                        and m.get("id") not in self.killed and math.dist(m["pos"][:2], me["pos"][:2]) <= PUSH_CLEAR
                        for m in obs.get("mechs") or [])
 
+    def _push_under_pressure(self, obs, target):
+        # Closing already exposes us to the target. One active secondary is enough to veto it.
+        target_id = target["id"]
+        now = obs["t"]
+        if any(0 <= mid < 16 and mid != target_id and mid not in self.killed
+               and now - hit[0] <= THREAT_RECENT_S for mid, hit in self.last_hits.items()):
+            return True
+
+        me = obs["self"]
+        x, y = me["pos"][:2]
+        laser_range = _stat(self.laser, "range", 280.0)
+        for mech in obs.get("mechs") or []:
+            mid, pos, aim = mech.get("id"), mech.get("pos"), mech.get("aim")
+            if (mech.get("kind") != "mech" or mid == target_id or mid in self.killed
+                    or not pos or not aim or aim[0] is None):
+                continue
+            dx, dy = x - pos[0], y - pos[1]
+            distance = math.hypot(dx, dy)
+            yaw_error = abs(math.remainder(aim[0] - math.atan2(dy, dx), math.tau))
+            if distance <= SANDWICH_RANGE and yaw_error <= math.radians(15):
+                return True
+            if mech.get("charging") and distance <= laser_range:
+                # Use the laser dodge's yaw tolerance for the same charging telegraph.
+                radius = self.mech_radius * self._scale(me)
+                cone = max(math.radians(2), min(math.radians(18), math.atan2(radius + 3, distance)))
+                if yaw_error <= cone:
+                    return True
+        return False
+
     def _anti_sandwich_move(self, me, mechs, zone):
         xy = me["pos"][:2]
         bearings = []
@@ -1483,7 +1513,8 @@ class Bot:
                 state += " wedge"
             elif movement in ("zone", "laser hunt", "drop-walk"):
                 s_sign = _strafe_sign(now)
-                if self._should_push(obs, target):
+                if (self._should_push(obs, target)
+                        and (not USE_PUSH_THREAT_GATE or not self._push_under_pressure(obs, target))):
                     dx, dy = target["pos"][0] - me["pos"][0], target["pos"][1] - me["pos"][1]
                     dist = math.hypot(dx, dy)
                     if dist > 1e-6:
