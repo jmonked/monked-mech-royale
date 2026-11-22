@@ -1568,7 +1568,7 @@ class Bot:
                     if bearing is not None:
                         state = "face"
                         act["aim"] = [bearing, 0.0]
-                        if self.last_near_sound is not None and now - self.last_near_sound[0] <= 0.6:
+                        if self.last_near_sound is not None and now - self.last_near_sound[0] <= 0.9:
                             act["aim"] = [self.last_near_sound[1], 0.0]
                     elif self._shoot_crate(obs, weapons, act):
                         state = "crate"
