@@ -1,0 +1,1585 @@
+{
+ "name": "v61-push-more-24",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "cca2fdd781167b08518a6b0a07dc1fcc85d81f3e",
+ "timestamp": "2026-11-21T22:59:10",
+ "seeds": [
+  1000,
+  1001,
+  1002,
+  1003,
+  1004,
+  1005,
+  1006,
+  1007,
+  1008,
+  1009,
+  1010,
+  1011,
+  1012,
+  1013,
+  1014,
+  1015,
+  1016,
+  1017,
+  1018,
+  1019,
+  1020,
+  1021,
+  1022,
+  1023
+ ],
+ "official_base": 4.73,
+ "official_candidate": null,
+ "submission": null,
+ "local_note": "LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR",
+ "matches": [
+  {
+   "seed": 1000,
+   "decisions": 255,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1000,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 25.4,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -28.8,
+     "end_cubes": 0,
+     "dmg_taken": 1417.5,
+     "dmg_dealt": 945.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 25.4,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -28.8,
+     "end_cubes": 0,
+     "dmg_taken": 1417.5,
+     "dmg_dealt": 945.0
+    }
+   }
+  },
+  {
+   "seed": 1001,
+   "decisions": 469,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1001,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 46.8,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 675.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 46.8,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 675.0
+    }
+   }
+  },
+  {
+   "seed": 1002,
+   "decisions": 1475,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1002,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 147.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -0.5,
+     "end_cubes": 0,
+     "dmg_taken": 1397.0,
+     "dmg_dealt": 0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 147.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -0.5,
+     "end_cubes": 0,
+     "dmg_taken": 1397.0,
+     "dmg_dealt": 0
+    }
+   }
+  },
+  {
+   "seed": 1003,
+   "decisions": 711,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1003,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 71.0,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -3.0,
+     "end_cubes": 2,
+     "dmg_taken": 1920.0,
+     "dmg_dealt": 2746.7
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 71.0,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -3.0,
+     "end_cubes": 2,
+     "dmg_taken": 1920.0,
+     "dmg_dealt": 2746.7
+    }
+   }
+  },
+  {
+   "seed": 1004,
+   "decisions": 616,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1004,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 4,
+     "place": 12,
+     "t": 61.5,
+     "kills": 4,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -7.7,
+     "end_cubes": 6,
+     "dmg_taken": 1710.0,
+     "dmg_dealt": 5953.0
+    },
+    "candidate_outcome": {
+     "score": 4,
+     "place": 12,
+     "t": 61.5,
+     "kills": 4,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -7.7,
+     "end_cubes": 6,
+     "dmg_taken": 1710.0,
+     "dmg_dealt": 5953.0
+    }
+   }
+  },
+  {
+   "seed": 1005,
+   "decisions": 2724,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1005,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 272.3,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.0,
+     "end_cubes": 0,
+     "dmg_taken": 1396.0,
+     "dmg_dealt": 0
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 272.3,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.0,
+     "end_cubes": 0,
+     "dmg_taken": 1396.0,
+     "dmg_dealt": 0
+    }
+   }
+  },
+  {
+   "seed": 1006,
+   "decisions": 2304,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1006,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 9,
+     "place": 7,
+     "t": 230.3,
+     "kills": 6,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -6.1,
+     "end_cubes": 6,
+     "dmg_taken": 5142.3,
+     "dmg_dealt": 10632.0
+    },
+    "candidate_outcome": {
+     "score": 9,
+     "place": 7,
+     "t": 230.3,
+     "kills": 6,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -6.1,
+     "end_cubes": 6,
+     "dmg_taken": 5142.3,
+     "dmg_dealt": 10632.0
+    }
+   }
+  },
+  {
+   "seed": 1007,
+   "decisions": 329,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1007,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 32.8,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -22.5,
+     "end_cubes": 2,
+     "dmg_taken": 1642.5,
+     "dmg_dealt": 3724.7
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 32.8,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -22.5,
+     "end_cubes": 2,
+     "dmg_taken": 1642.5,
+     "dmg_dealt": 3724.7
+    }
+   }
+  },
+  {
+   "seed": 1008,
+   "decisions": 205,
+   "differing": 33,
+   "categories": {
+    "boost+move": 6,
+    "move": 27
+   },
+   "first_divergence": {
+    "seed": 1008,
+    "tick": 96,
+    "t": 4.8,
+    "pos": [
+     76.464,
+     111.343,
+     2.946
+    ],
+    "vel": [
+     6.41,
+     -5.747,
+     0.0
+    ],
+    "hp": 1220.0,
+    "max_hp": 1400.0,
+    "energy": 92.5,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -1.435,
+     -0.021
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 2,
+      "reload": 0.0,
+      "cooldown": 0.14
+     },
+     null
+    ],
+    "visible_enemies": 1,
+    "nearest": [
+     {
+      "id": 1,
+      "dist": 87.5,
+      "hp": 995.0,
+      "charging": false,
+      "aim_err_deg": 4.5,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "1": 1.8
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      -91.326,
+      -36.072
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 1 hp 995 hp87% c0",
+    "fields": [
+     "boost",
+     "move"
+    ],
+    "base_action": {
+     "tick": 96,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.2368117088651957,
+      -0.97155556431135
+     ],
+     "aim": [
+      -1.4360513500903456,
+      -0.020046200772108707
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 96,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.6831218112678843,
+      -0.7303044508765404
+     ],
+     "aim": [
+      -1.4360513500903456,
+      -0.020046200772108707
+     ],
+     "boost": true,
+     "jump": false
+    }
+   },
+   "reconverged_after": 4.2,
+   "paired": {
+    "seed": 1008,
+    "first_divergence_t": 4.8,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": 0.0,
+       "pos_delta": 8.8,
+       "energy_delta": 7.5,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": 0.0,
+       "pos_delta": 13.2,
+       "energy_delta": -10.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": 0.0,
+       "pos_delta": 16.1,
+       "energy_delta": 5.8,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -90.0,
+       "pos_delta": 32.1,
+       "energy_delta": 7.5,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 23.1,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 2160.0
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 20.4,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1372.5,
+     "dmg_dealt": 1440.0
+    }
+   }
+  },
+  {
+   "seed": 1009,
+   "decisions": 481,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1009,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 48.1,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1830.0,
+     "dmg_dealt": 1575.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 48.1,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1830.0,
+     "dmg_dealt": 1575.0
+    }
+   }
+  },
+  {
+   "seed": 1010,
+   "decisions": 881,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1010,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 88.0,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -41.0,
+     "end_cubes": 4,
+     "dmg_taken": 2025.0,
+     "dmg_dealt": 3881.4
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 88.0,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -41.0,
+     "end_cubes": 4,
+     "dmg_taken": 2025.0,
+     "dmg_dealt": 3881.4
+    }
+   }
+  },
+  {
+   "seed": 1011,
+   "decisions": 194,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1011,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 19.4,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1395.0
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 19.4,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1395.0
+    }
+   }
+  },
+  {
+   "seed": 1012,
+   "decisions": 2737,
+   "differing": 31,
+   "categories": {
+    "boost+move": 5,
+    "move": 26
+   },
+   "first_divergence": {
+    "seed": 1012,
+    "tick": 130,
+    "t": 6.5,
+    "pos": [
+     -182.497,
+     286.978,
+     -4.895
+    ],
+    "vel": [
+     11.366,
+     -2.774,
+     0.0
+    ],
+    "hp": 1265.0,
+    "max_hp": 1400.0,
+    "energy": 100.0,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -1.274,
+     -0.031
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 2,
+      "reload": 0.0,
+      "cooldown": 0.14
+     },
+     {
+      "kind": "lightning",
+      "cooldown": 0.0
+     }
+    ],
+    "visible_enemies": 2,
+    "nearest": [
+     {
+      "id": 1,
+      "dist": 86.1,
+      "hp": 1040.0,
+      "charging": false,
+      "aim_err_deg": 2.6,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 8,
+      "dist": 102.9,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 69.0,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "1": 2.2
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      29.858,
+      44.119
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 1 hp 1040 hp90% c0",
+    "fields": [
+     "boost",
+     "move"
+    ],
+    "base_action": {
+     "tick": 130,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9709942855692866,
+      -0.23910269214668112
+     ],
+     "aim": [
+      -1.285871264249965,
+      -0.03143986457901131
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 130,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.788003403732209,
+      -0.615670882620295
+     ],
+     "aim": [
+      -1.285871264249965,
+      -0.03143986457901131
+     ],
+     "boost": true,
+     "jump": false
+    }
+   },
+   "reconverged_after": 3.2,
+   "paired": {
+    "seed": 1012,
+    "first_divergence_t": 6.5,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": 0.0,
+       "pos_delta": 9.6,
+       "energy_delta": 0.0,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": 0.0,
+       "pos_delta": 13.7,
+       "energy_delta": -8.5,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -225.0,
+       "pos_delta": 28.7,
+       "energy_delta": 0.0,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -270.0,
+       "pos_delta": 31.8,
+       "energy_delta": 0.0,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 4,
+     "place": 12,
+     "t": 271.4,
+     "kills": 2,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -4.0,
+     "end_cubes": 2,
+     "dmg_taken": 2676.0,
+     "dmg_dealt": 2896.8
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 273.6,
+     "kills": 1,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -2.2,
+     "end_cubes": 2,
+     "dmg_taken": 2186.0,
+     "dmg_dealt": 1455.0
+    }
+   }
+  },
+  {
+   "seed": 1013,
+   "decisions": 269,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1013,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 26.8,
+     "kills": 0,
+     "cause": "laser",
+     "errors": 0,
+     "end_hp": -62.5,
+     "end_cubes": 0,
+     "dmg_taken": 1147.5,
+     "dmg_dealt": 841.4
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 26.8,
+     "kills": 0,
+     "cause": "laser",
+     "errors": 0,
+     "end_hp": -62.5,
+     "end_cubes": 0,
+     "dmg_taken": 1147.5,
+     "dmg_dealt": 841.4
+    }
+   }
+  },
+  {
+   "seed": 1014,
+   "decisions": 1207,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1014,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 120.6,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 540.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 120.6,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 540.0
+    }
+   }
+  },
+  {
+   "seed": 1015,
+   "decisions": 198,
+   "differing": 3,
+   "categories": {
+    "move": 3
+   },
+   "first_divergence": {
+    "seed": 1015,
+    "tick": 306,
+    "t": 15.3,
+    "pos": [
+     -218.346,
+     -195.405,
+     -4.264
+    ],
+    "vel": [
+     10.87,
+     1.633,
+     0.0
+    ],
+    "hp": 1250.0,
+    "max_hp": 1400.0,
+    "energy": 100.0,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     0.731,
+     -0.082
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 7,
+      "reload": 0.0,
+      "cooldown": 0.24
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 1.3
+     }
+    ],
+    "visible_enemies": 1,
+    "nearest": [
+     {
+      "id": 14,
+      "dist": 37.8,
+      "hp": 896.15,
+      "charging": false,
+      "aim_err_deg": 1.4,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "14": 0.0
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      65.005,
+      -99.509
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 14 hp 896 hp89% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 306,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9597936764959654,
+      -0.2807064277111556
+     ],
+     "aim": [
+      0.741868826413315,
+      -0.0799811590938281
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 306,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9970192598016239,
+      0.07715306594440752
+     ],
+     "aim": [
+      0.741868826413315,
+      -0.0799811590938281
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.3,
+   "paired": {
+    "seed": 1015,
+    "first_divergence_t": 15.3,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -360.0,
+       "pos_delta": 11.6,
+       "energy_delta": 0.0,
+       "targets": [
+        "14"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -360.0,
+       "pos_delta": 11.5,
+       "energy_delta": 0.0,
+       "targets": [
+        "14"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -1050.0,
+       "pos_delta": 29.6,
+       "energy_delta": 0.0,
+       "targets": [
+        "14"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -1050.0,
+       "pos_delta": 29.9,
+       "energy_delta": 0.0,
+       "targets": [
+        "14"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 19.3,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 863.9
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 19.7,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 908.9
+    }
+   }
+  },
+  {
+   "seed": 1016,
+   "decisions": 535,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1016,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 53.4,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -67.0,
+     "end_cubes": 0,
+     "dmg_taken": 1440.0,
+     "dmg_dealt": 4300.8
+    },
+    "candidate_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 53.4,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -67.0,
+     "end_cubes": 0,
+     "dmg_taken": 1440.0,
+     "dmg_dealt": 4300.8
+    }
+   }
+  },
+  {
+   "seed": 1017,
+   "decisions": 1081,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1017,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 108.1,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -20.2,
+     "end_cubes": 2,
+     "dmg_taken": 2272.5,
+     "dmg_dealt": 4103.1
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 108.1,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -20.2,
+     "end_cubes": 2,
+     "dmg_taken": 2272.5,
+     "dmg_dealt": 4103.1
+    }
+   }
+  },
+  {
+   "seed": 1018,
+   "decisions": 488,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1018,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 48.8,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -34.2,
+     "end_cubes": 2,
+     "dmg_taken": 1777.5,
+     "dmg_dealt": 5343.3
+    },
+    "candidate_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 48.8,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -34.2,
+     "end_cubes": 2,
+     "dmg_taken": 1777.5,
+     "dmg_dealt": 5343.3
+    }
+   }
+  },
+  {
+   "seed": 1019,
+   "decisions": 476,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1019,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 47.5,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1320.0,
+     "dmg_dealt": 900.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 47.5,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1320.0,
+     "dmg_dealt": 900.0
+    }
+   }
+  },
+  {
+   "seed": 1020,
+   "decisions": 2045,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1020,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 204.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.2,
+     "end_cubes": 0,
+     "dmg_taken": 1395.2,
+     "dmg_dealt": 0
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 204.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.2,
+     "end_cubes": 0,
+     "dmg_taken": 1395.2,
+     "dmg_dealt": 0
+    }
+   }
+  },
+  {
+   "seed": 1021,
+   "decisions": 1100,
+   "differing": 38,
+   "categories": {
+    "move": 21,
+    "boost+move": 17
+   },
+   "first_divergence": {
+    "seed": 1021,
+    "tick": 672,
+    "t": 33.6,
+    "pos": [
+     -58.373,
+     43.111,
+     -1.537
+    ],
+    "vel": [
+     -2.902,
+     0.057,
+     0.0
+    ],
+    "hp": 1220.0,
+    "max_hp": 1400.0,
+    "energy": 83.0,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -2.613,
+     -0.091
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 9,
+      "reload": 0.0,
+      "cooldown": 0.09
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 1.6
+     }
+    ],
+    "visible_enemies": 1,
+    "nearest": [
+     {
+      "id": 12,
+      "dist": 67.6,
+      "hp": 1008.65,
+      "charging": false,
+      "aim_err_deg": 0.9,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "12": 0.1
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      -2.716,
+      40.645
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 12 hp 1009 hp87% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 672,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.6092709654699305,
+      0.7929620991165585
+     ],
+     "aim": [
+      -2.6462691801466094,
+      -0.09181825028215784
+     ],
+     "boost": true,
+     "jump": true
+    },
+    "candidate_action": {
+     "tick": 672,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.08783692118409037,
+      -0.9961348680158224
+     ],
+     "aim": [
+      -2.6462691801466094,
+      -0.09181825028215784
+     ],
+     "boost": true,
+     "jump": true
+    }
+   },
+   "reconverged_after": 2.5,
+   "paired": {
+    "seed": 1021,
+    "first_divergence_t": 33.6,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -135.0,
+       "pos_delta": 0.1,
+       "energy_delta": -8.5,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [],
+       "stuck": true,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -90.0,
+       "pos_delta": 13.0,
+       "energy_delta": -8.5,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -315.0,
+       "pos_delta": 16.9,
+       "energy_delta": -19.2,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -225.0,
+       "pos_delta": 21.9,
+       "energy_delta": 17.0,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 77.6,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.5,
+     "end_cubes": 2,
+     "dmg_taken": 2092.5,
+     "dmg_dealt": 3245.2
+    },
+    "candidate_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 110.0,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -2.7,
+     "end_cubes": 2,
+     "dmg_taken": 2402.1,
+     "dmg_dealt": 5769.4
+    }
+   }
+  },
+  {
+   "seed": 1022,
+   "decisions": 743,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1022,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 74.2,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -16.2,
+     "end_cubes": 2,
+     "dmg_taken": 2340.0,
+     "dmg_dealt": 2786.5
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 74.2,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -16.2,
+     "end_cubes": 2,
+     "dmg_taken": 2340.0,
+     "dmg_dealt": 2786.5
+    }
+   }
+  },
+  {
+   "seed": 1023,
+   "decisions": 248,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1023,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 24.8,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1305.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 24.8,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1305.0
+    }
+   }
+  }
+ ],
+ "activation": {},
+ "summary": {
+  "matches": 24,
+  "decisions": 21771,
+  "differing": 105,
+  "matches_diverged": 4,
+  "categories": {
+   "boost+move": 28,
+   "move": 77
+  }
+ }
+}
