@@ -3,7 +3,7 @@
 - Baseline: `c8e98e18b1471388bdeee6f2e090568393af446b`
 - Candidate: `cca2fdd781167b08518a6b0a07dc1fcc85d81f3e`
 - Official baseline: 4.73
-- Official candidate: not recorded
+- Official candidate: 4.52 (delta -0.21)
 - Matches tested: 24 (seeds 1000..1023)
 - Decisions compared: 21771
 - Differing decisions: 105
