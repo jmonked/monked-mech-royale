@@ -14,6 +14,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_AGGREGATE_THREAT = True  # v72: under 2+ active mech threats, ordinary combat movement weighs all of them
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -516,6 +517,125 @@ class Bot:
         if best_vec is None:
             return None, False
         return best_vec, (not charging_self and me.get("energy", 0) >= 35 and best_dist <= 160.0)
+
+    def _aggregate_threat_move(self, obs, intended, stock_move):
+        """v72: pick a movement direction against 2+ credible mech threats (recent hitters, charging lasers
+        whose line covers us, mechs aimed at us within 120 m). Returns None (keep v39's move) unless a valid
+        candidate clearly beats the stock move."""
+        me = obs["self"]
+        now = obs["t"]
+        x, y, z = me["pos"]
+        my_id = me.get("id")
+        if self._current_roof(me["pos"]) is not None or now < self.unstick_until:
+            return None   # unstick rotates whatever move it is given by 90 deg; let v39 recover first
+        zone = obs["zone"]
+        cx, cy = zone["next_center"]
+        if math.hypot(x - cx, y - cy) > zone["next_radius"]:
+            return None   # outside the next circle: v39's zone travel owns movement
+        hist = [p for p in self.pos_history if now - p[0] <= 0.65] + [(now, x, y)]
+        if now - hist[0][0] >= 0.45 and math.hypot(x - hist[0][1], y - hist[0][2]) < 1.5:
+            return None   # the same stall test _apply_unstick runs next: it would rotate our choice
+        sources = {}
+        for mid, (t_hit, bearing) in self.last_hits.items():
+            if (isinstance(mid, int) and 0 <= mid < 16 and mid != my_id and mid not in self.killed
+                    and now - t_hit <= THREAT_RECENT_S and bearing is not None):
+                sources[mid] = bearing
+        scale = self._scale(me)
+        width = self.mech_radius * scale + 3.0
+        half_h = self.half_height * scale
+        laser_range = _stat(self.laser, "range", 280.0)
+        rays = []
+        for m in obs.get("mechs") or []:
+            mid = m.get("id")
+            if m.get("kind") != "mech" or not m.get("pos") or mid in self.killed or mid == my_id:
+                continue
+            mx, my, mz = m["pos"]
+            dx, dy = x - mx, y - my
+            dist = math.hypot(dx, dy)
+            if dist < 1e-6:
+                continue
+            to_mech = math.atan2(-dy, -dx)
+            if mid in sources:
+                sources[mid] = to_mech
+            aim = m.get("aim")
+            if not aim or aim[0] is None:
+                continue
+            yaw_err = abs(math.remainder(aim[0] - math.atan2(dy, dx), math.tau))
+            if m.get("charging") and dist <= laser_range:
+                ux, uy = math.cos(aim[0]), math.sin(aim[0])
+                along = ux * dx + uy * dy
+                side = ux * dy - uy * dx
+                beam_z = mz + self.muzzle_height * self._scale(m) + along * math.tan(aim[1] or 0.0)
+                if (along > 0 and abs(side) < width + 6.0 and abs(beam_z - (z + half_h)) < half_h + 3.0
+                        and not self._target_blocked(me, m)):
+                    rays.append((ux, uy, side))   # any beam line we could step into this decision
+                    if abs(side) < width:
+                        sources[mid] = to_mech
+                        continue
+            if dist <= 120.0 and yaw_err <= math.radians(5) and not self._target_blocked(me, m):
+                sources[mid] = to_mech
+        if len(sources) < 2:
+            return None
+        units = [(math.cos(b), math.sin(b)) for b in sources.values()]
+        sx, sy = sum(u[0] for u in units), sum(u[1] for u in units)
+        if math.hypot(sx, sy) < 0.3 * len(units):
+            # threats roughly surround us: no meaningful escape bearing; centre the grid on v39's own move
+            away = math.atan2(stock_move[1], stock_move[0]) if math.hypot(*stock_move) > 1e-6 else 0.0
+        else:
+            away = math.atan2(-sy, -sx)
+        il = math.hypot(*intended)
+        iv = (intended[0] / il, intended[1] / il) if il > 1e-6 else (0.0, 0.0)
+
+        def score(vx, vy):
+            # Reward crossing every attacker's line of fire; penalise closing in. A straight retreat keeps us on
+            # their aim lines (the kiting failure), so radial motion earns nothing beyond a small opening bonus.
+            per = []
+            for ux, uy in units:
+                radial = vx * ux + vy * uy
+                per.append(abs(vx * uy - vy * ux) - 0.6 * max(0.0, radial) + 0.15 * max(0.0, -radial))
+            s = 0.5 * (min(per) + sum(per) / len(per)) + 0.2 * (vx * iv[0] + vy * iv[1])
+            for ux, uy, side in rays:
+                lateral = side + 5.0 * (ux * vy - uy * vx)
+                s -= 2.0 * max(0.0, 1.0 - abs(lateral) / width)
+            return s
+
+        hard = self.mech_radius * scale + 1.0
+
+        def beams_entered(vx, vy):
+            out = set()
+            for i, (ux, uy, side) in enumerate(rays):
+                end = side + 5.0 * (ux * vy - uy * vx)   # lateral offset is linear along the step
+                if abs(side) < hard or abs(end) < hard or (side > 0) != (end > 0):
+                    out.add(i)
+            return out
+
+        sl = math.hypot(*stock_move)
+        stock_score = score(stock_move[0] / sl, stock_move[1] / sl) if sl > 1e-6 else score(0.0, 0.0)
+        stock_beams = beams_entered(stock_move[0], stock_move[1])
+        speed = sl if sl > 1e-6 else 1.0
+        body = self.mech_radius * scale
+        cands = []
+        for i in range(8):
+            ang = away + i * math.pi / 4
+            vx, vy = math.cos(ang), math.sin(ang)
+            cands.append((score(vx, vy), vx, vy))
+        if il > 1e-6:
+            cands.append((score(*iv), iv[0], iv[1]))
+        for s, vx, vy in sorted(cands, reverse=True):
+            if s < stock_score + 0.15:
+                return None
+            if max(vx * ux + vy * uy for ux, uy in units) > 0.7:
+                continue   # never walk straight at an active threat
+            tx, ty = x + 5.0 * vx, y + 5.0 * vy
+            if math.hypot(tx - cx, ty - cy) > zone["next_radius"] or not beams_entered(speed * vx, speed * vy) <= stock_beams:
+                continue
+            fx, fy = x + (5.0 + body) * vx, y + (5.0 + body) * vy   # where the front of the body reaches
+            if self._point_blocked_2d(tx, ty, z) or any(   # centreline and both body edges must be clear
+                    self._building_blocked((x + o * -vy, y + o * vx, z + 1.2), (fx + o * -vy, fy + o * vx, z + 1.2))
+                    for o in (0.0, body, -body)):
+                continue
+            return [speed * vx, speed * vy]
+        return None
 
     def _find_cover(self, xy, threat, zone):
         closest = None
@@ -1468,6 +1588,7 @@ class Bot:
             return act
 
         movement = self._movement(obs, weapons, act, drop)
+        intended_move = list(act.get("move") or [0.0, 0.0])
         holding_drop = movement.startswith("drop-hold")
         state = "idle"
         charging = False
@@ -1616,6 +1737,17 @@ class Bot:
                         if l_boost:
                             act["boost"] = True
                         state += " ldodge"
+
+        # v72: any emergency defense chosen above keeps priority.
+        # Only ordinary zone-movement strafe: pushes (boost + pushing state assume closing), laser hunts, cube walks and
+        # drop walks/holds are objective moves and keep v39's direction.
+        if (USE_AGGREGATE_THREAT and target is not None and movement == "zone" and not pushing and not charging
+                and not finishing and not holding_drop and me.get("in_zone", True)
+                and not ({"wedge", "tp-cover", "cover", "dodge", "ldodge", "zone-run"} & set(state.split()))):
+            aggregate = self._aggregate_threat_move(obs, intended_move, act["move"])
+            if aggregate is not None:
+                act["move"] = aggregate
+                state += " aggregate"
 
         if not holding_drop and movement != "roof-climb":
             self._apply_unstick(obs, act, charging)
