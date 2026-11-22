@@ -13,7 +13,7 @@ USE_EARLY_CAUTION = True     # point 13: in first 60 s, don't push a laser holde
 USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser holder unless <= 50% HP
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
-USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_FFA_THIRD_PARTY = False  # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
