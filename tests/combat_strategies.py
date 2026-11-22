@@ -50,14 +50,14 @@ def build(draw, family="any"):
     mechs, hits = [], {}
     for i in range(n):
         mid = ids[i]
-        dist = draw("float", 12.0, 260.0)
+        dist = draw("float", 12.0, 260.0) + 0.37 * i   # exact distance ties are a known v39 tie-break sensitivity
         bearing = draw("float", -math.pi, math.pi)
         x, y = dist * math.cos(bearing), dist * math.sin(bearing)
         to_me = math.atan2(-y, -x)
         wpn = draw("choice", (("gun",), ("gun", "laser"), ("gun", "lightning"), ("gun", "mortar")))
         if family == "crossfire" and i < 2:
             wpn = ("gun", "laser")
-        err = draw("choice", (0.0, 0.0, 0.02, 0.1, 0.6))
+        err = draw("choice", (0.003, -0.003, 0.02, 0.1, 0.6))   # exactly 0: v39's sidestep side = sign of a ~0 offset
         charging = "laser" in wpn and (draw("bool") or (family == "crossfire" and i < 2))
         mechs.append({"id": mid, "kind": "mech", "pos": [x, y, 0.0], "vel": [0.0, 0.0, 0.0], "aim": [to_me + err, 0.0],
                       "hp": draw("float", 40.0, 1400.0), "max_hp": 1400.0, "cubes": draw("int", 0, 10),

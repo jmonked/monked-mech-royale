@@ -9,12 +9,14 @@ Rules (candidate compared with base on the same scenario):
   C2 toward-crossfire      2+ active attackers and the candidate walks straight at 2+ of them (cos > 0.7) when the
                            base did not
   C3 stall-under-crossfire 2+ active attackers, candidate |move| < 0.2 while base |move| >= 0.5 (not holding a drop)
-  C4 into-laser-line       a visible charging mech with clear line of sight aimed at us; the candidate's 5 m step ends inside its beam
-                           width while the base's ends outside
+  C4 into-laser-line       a visible charging mech (clear line of sight, beam height on our body) whose line we are not
+                           in yet; the candidate's 5 m step touches the beam strip (endpoint or crossing) while the
+                           base's step does not
   C5 leaves-zone           we are inside the next circle and the candidate's 5 m step leaves it while the base's
                            does not
-  C6 boost-into-wall       candidate boosts along a 5 m step blocked by a building while the base's step is clear
-Safer (inverse proofs): candidate exits a beam line the base stays in; avoids walking at 2+ attackers the base walks
+  C6 boost-into-wall       candidate boosts along a 5 m step whose centreline or body edge hits a building while the
+                           base step is clear
+Safer (inverse proofs): candidate avoids a beam strip the base steps into; avoids walking at 2+ attackers the base walks
 at; stays in the next circle when the base leaves it. Worse (non-catastrophic): candidate walks straight at one
 active attacker (cos > 0.7) when the base does not.
 """
@@ -68,6 +70,11 @@ def beams(sc, bot):
             continue
         if hasattr(bot, "_target_blocked") and bot._target_blocked(me, m):
             continue   # a building stops the beam: not a live line
+        half = getattr(bot, "half_height", 4.5) * scale
+        along = ux * dx + uy * dy
+        beam_z = m["pos"][2] + getattr(bot, "muzzle_height", 7.0) * (bot._scale(m) if hasattr(bot, "_scale") else 1.0)             + along * math.tan(aim[1] or 0.0)
+        if abs(beam_z - (me["pos"][2] + half)) >= half + 3.0:
+            continue   # pitched over/under our body at this range
         side = ux * dy - uy * dx
         if abs(side) < width + STEP:
             out.append((ux, uy, side, width))
@@ -75,8 +82,10 @@ def beams(sc, bot):
 
 
 def _in_beam(b, vx, vy):
+    """True if the 5 m step touches the beam strip anywhere (start, end, or crossing it)."""
     ux, uy, side, width = b
-    return abs(side + STEP * (ux * vy - uy * vx)) < width
+    end = side + STEP * (ux * vy - uy * vx)
+    return abs(side) < width or abs(end) < width or (side > 0) != (end > 0)
 
 
 def classify(sc, bot, base, cand):
@@ -116,6 +125,8 @@ def classify(sc, bot, base, cand):
             worse.append("walks straight at an active attacker")
 
     for b in beams(sc, bot):
+        if abs(b[2]) < b[3]:
+            continue   # already standing in the line: leaving it is judged by the dodge systems, not here
         b_in = _in_beam(b, bx * min(bn, 1.0), by * min(bn, 1.0))
         c_in = _in_beam(b, cx * min(cn, 1.0), cy * min(cn, 1.0))
         if c_in and not b_in:
@@ -136,8 +147,15 @@ def classify(sc, bot, base, cand):
                 safer.append("stays in next circle")
 
     if ac.get("boost") and cn and hasattr(bot, "_building_blocked"):
-        c_blk = bot._building_blocked((x, y, z + 1.3), (x + STEP * cx, y + STEP * cy, z + 1.3))
-        b_blk = bn and bot._building_blocked((x, y, z + 1.3), (x + STEP * bx, y + STEP * by, z + 1.3))
+        body = getattr(bot, "mech_radius", 2.5) * (bot._scale(me) if hasattr(bot, "_scale") else 1.0)
+
+        def blocked(ux_, uy_):   # centreline and both body edges
+            reach = STEP + body   # the front of the body travels one radius further than the centre
+            return any(bot._building_blocked((x - o * uy_, y + o * ux_, z + 1.3),
+                                             (x + reach * ux_ - o * uy_, y + reach * uy_ + o * ux_, z + 1.3))
+                       for o in (0.0, body, -body))
+        c_blk = blocked(cx, cy)
+        b_blk = bn and blocked(bx, by)
         if c_blk and not b_blk:
             cat.append("C6 boosts into a wall")
 

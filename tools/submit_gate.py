@@ -96,7 +96,10 @@ def main():
             m = re.findall(r"(\d+) (passed|failed|skipped|error)", out)
             card["Scenario tests (pytest -n auto)"] = (", ".join(f"{n} {w}" for n, w in m) or out[-200:])
             if rc:
-                fails.append("pytest failed")
+                failed = re.findall(r"FAILED (\S+)", out)
+                fails.append(f"pytest failed: {failed[:5]}")
+                with open(os.path.join(ROOT, "experiments", "results", f"gate-{cand[:7]}-pytest.txt"), "w", encoding="utf-8") as fh:
+                    fh.write(out[-20000:])
             rc, out = run([sys.executable, os.path.join(HERE, "experiment_harness.py"), "corpus", "--base", base,
                            "--candidate", bot, "--name", f"gate-{cand[:7]}", "--hypothesis", "1000"], cwd=ROOT)
             g = lambda k: (re.search(rf"- {k}: (\S+)", out) or [None, "?"])[1]  # noqa: E731

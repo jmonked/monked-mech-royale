@@ -1,0 +1,266 @@
+{
+ "name": "v72-final",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "076094fbd128c8df846b695d5f24c3ec84d35767",
+ "timestamp": "2026-11-22T00:29:22",
+ "scenarios": 4556,
+ "verdicts": {
+  "identical": 4455,
+  "safer": 9,
+  "worse": 0,
+  "uncertain": 92,
+  "catastrophic": 0
+ },
+ "by_category": {
+  "multi-threat": {
+   "identical": 694,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 18,
+   "catastrophic": 0
+  },
+  "laser-crossfire": {
+   "identical": 516,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 5,
+   "catastrophic": 0
+  },
+  "dodge-conflict": {
+   "identical": 497,
+   "safer": 2,
+   "worse": 0,
+   "uncertain": 11,
+   "catastrophic": 0
+  },
+  "cover-conflict": {
+   "identical": 531,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 11,
+   "catastrophic": 0
+  },
+  "unstick-conflict": {
+   "identical": 613,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "sound-boundaries": {
+   "identical": 259,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "zone-pressure": {
+   "identical": 319,
+   "safer": 1,
+   "worse": 0,
+   "uncertain": 4,
+   "catastrophic": 0
+  },
+  "combat-misc": {
+   "identical": 16,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 1,
+   "catastrophic": 0
+  },
+  "regression": {
+   "identical": 50,
+   "safer": 1,
+   "worse": 0,
+   "uncertain": 7,
+   "catastrophic": 0
+  },
+  "hypothesis": {
+   "identical": 960,
+   "safer": 5,
+   "worse": 0,
+   "uncertain": 35,
+   "catastrophic": 0
+  }
+ },
+ "fields_changed": {
+  "move": 101
+ },
+ "reasons": {
+  "avoids walking at 2+ attackers": 9
+ },
+ "activation_tokens": {
+  "aggregate": 101
+ },
+ "coverage": {
+  "tactical_pct": 85.4,
+  "tactical_arcs": [
+   468,
+   548
+  ],
+  "changed_lines_reached": [
+   104,
+   110
+  ]
+ },
+ "examples": {
+  "catastrophic": [],
+  "worse": [],
+  "safer": [
+   {
+    "name": "dodge-conflict-laser-sidestep+unseen-multi-threat-s1010-t71.4",
+    "category": "dodge-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 671 hp55% c2",
+    "cand_label": "zone fight 1 hp 671 aggregate hp55% c2",
+    "base_move": [
+     0.656,
+     -0.755
+    ],
+    "cand_move": [
+     -0.933,
+     -0.36
+    ]
+   },
+   {
+    "name": "dodge-conflict-bullet+2att-multi-threat-s1014-t119.5",
+    "category": "dodge-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 12 hp 950 hp37% c0",
+    "cand_label": "zone fight 12 hp 950 aggregate hp37% c0",
+    "base_move": [
+     0.366,
+     0.931
+    ],
+    "cand_move": [
+     -0.704,
+     0.71
+    ]
+   },
+   {
+    "name": "zone-pressure-edge+2att-multi-threat-s1023-t18.1",
+    "category": "zone-pressure",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 7 hp 635 hp55% c0",
+    "cand_label": "zone fight 7 hp 635 aggregate hp55% c0",
+    "base_move": [
+     0.783,
+     0.622
+    ],
+    "cand_move": [
+     0.254,
+     0.967
+    ]
+   },
+   {
+    "name": "codex-v72-same-bearing-near-collinear",
+    "category": "regression",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 1400 hp93% c0",
+    "cand_label": "zone fight 1 hp 1400 aggregate hp93% c0",
+    "base_move": [
+     0.819,
+     -0.574
+    ],
+    "cand_move": [
+     0.009,
+     1.0
+    ]
+   },
+   {
+    "name": "hyp-any",
+    "category": "hypothesis",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 2 hp 772 hp47% c6",
+    "cand_label": "zone fight 2 hp 772 aggregate hp47% c6",
+    "base_move": [
+     -0.933,
+     0.359
+    ],
+    "cand_move": [
+     -0.084,
+     -0.997
+    ]
+   },
+   {
+    "name": "hyp-zone",
+    "category": "hypothesis",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 657 hp88% c13",
+    "cand_label": "zone fight 1 hp 657 aggregate hp88% c13",
+    "base_move": [
+     -0.731,
+     0.682
+    ],
+    "cand_move": [
+     0.593,
+     0.805
+    ]
+   },
+   {
+    "name": "hyp-cover",
+    "category": "hypothesis",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 458 hp94% c2",
+    "cand_label": "zone fight 1 hp 458 aggregate hp94% c2",
+    "base_move": [
+     -0.124,
+     -0.992
+    ],
+    "cand_move": [
+     0.991,
+     0.132
+    ]
+   },
+   {
+    "name": "hyp-cover",
+    "category": "hypothesis",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 2 hp 557 hp23% c2",
+    "cand_label": "zone fight 2 hp 557 aggregate hp23% c2",
+    "base_move": [
+     0.987,
+     0.16
+    ],
+    "cand_move": [
+     0.073,
+     0.997
+    ]
+   },
+   {
+    "name": "hyp-multi",
+    "category": "hypothesis",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 691 hp22% c9",
+    "cand_label": "zone fight 3 hp 691 aggregate hp22% c9",
+    "base_move": [
+     -0.945,
+     0.326
+    ],
+    "cand_move": [
+     -0.25,
+     -0.968
+    ]
+   }
+  ]
+ },
+ "note": "Static single-decision verdicts. 'uncertain' = differs but no proof either way. LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR"
+}

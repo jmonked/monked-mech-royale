@@ -19,3 +19,6 @@ Local columns: LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR. `unknown` = never r
 | 1c4827e | v71 near-sound 0.9 s | 8/6250 | 2/6 | 4.73 | +0.00 |
 | e02ddaa | TOOLING ONLY (example_bot.py == v39) - submitted by mistake | unknown | unknown | 4.73 | +0.00 |
 | a027c8c | v72-aggregate-threat-v2 | 29/6244 | 3/6 | not scored | - |
+| 076094f | v72-final-seeds1000-1023 | 68/21349 | 8/24 | not scored | - |
+| 7b8bcd3 | v72c-seeds1000-1023 | 97/21313 | 10/24 | not scored | - |
+| dcbc36e | v72e-seeds1000-1023 | 63/21324 | 9/24 | not scored | - |

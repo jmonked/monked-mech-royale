@@ -19,11 +19,12 @@ from hypothesis import strategies as st
 
 import combat_strategies as cs
 import scenario_lab as lab
-from conftest import BASE, CANDIDATE, EXAMPLES, ROOT
+from conftest import BASE, CANDIDATE, EXAMPLES, ROOT, save_found
 
 SET = settings(max_examples=EXAMPLES, deadline=None, derandomize=True, database=None,
                suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large])
 REFS = [BASE] + ([CANDIDATE] if CANDIDATE else [])
+REF_IDS = ["base"] + (["candidate"] if CANDIDATE else [])   # stable ids: Hypothesis seeds from the test id
 EPS = 1e-6
 
 
@@ -86,7 +87,7 @@ def same(a, b, th=0.0):
     return True, ""
 
 
-@pytest.mark.parametrize("ref", REFS)
+@pytest.mark.parametrize("ref", REFS, ids=REF_IDS)
 @SET
 @given(data=st.data(), th=st.floats(-math.pi, math.pi))
 def test_rotation(ref, data, th):
@@ -97,20 +98,25 @@ def test_rotation(ref, data, th):
         return
     b = rn.run(rotate(sc, th))
     ok, why = same(a["action"], b["action"], th)
+    if not ok:
+        save_found("metamorphic-rotation", sc, [why, a["label"], b["label"]])
     assert ok, f"{why} | {a['label']} | {b['label']}"
 
 
-@pytest.mark.parametrize("ref", REFS)
+@pytest.mark.parametrize("ref", REFS, ids=REF_IDS)
 @SET
 @given(data=st.data(), dx=st.floats(-300, 300), dy=st.floats(-300, 300))
 def test_translation(ref, data, dx, dy):
     sc = data.draw(cs.combat(data.draw(st.sampled_from(cs.FAMILIES))))
     rn = lab.runner(ref)
-    ok, why = same(rn.run(sc)["action"], rn.run(translate(sc, dx, dy))["action"])
-    assert ok, why
+    a, b = rn.run(sc), rn.run(translate(sc, dx, dy))
+    ok, why = same(a["action"], b["action"])
+    if not ok:
+        save_found("metamorphic-translation", sc, [why, a["label"], b["label"]])
+    assert ok, f"{why} | {a['label']} | {b['label']}"
 
 
-@pytest.mark.parametrize("ref", REFS)
+@pytest.mark.parametrize("ref", REFS, ids=REF_IDS)
 @SET
 @given(data=st.data(), seed=st.integers(0, 10 ** 6))
 def test_enemy_order(ref, data, seed):
@@ -118,8 +124,11 @@ def test_enemy_order(ref, data, seed):
     sc2 = copy.deepcopy(sc)
     random.Random(seed).shuffle(sc2["obs"]["mechs"])
     rn = lab.runner(ref)
-    ok, why = same(rn.run(sc)["action"], rn.run(sc2)["action"])
-    assert ok, why
+    a, b = rn.run(sc), rn.run(sc2)
+    ok, why = same(a["action"], b["action"])
+    if not ok:
+        save_found("metamorphic-order", sc, [why, a["label"], b["label"]])
+    assert ok, f"{why} | {a['label']} | {b['label']}"
 
 
 BOUNDARY_PROBES = {
@@ -150,7 +159,7 @@ def _with_age(sc, key, age):
     return sc
 
 
-@pytest.mark.parametrize("ref", REFS)
+@pytest.mark.parametrize("ref", REFS, ids=REF_IDS)
 def test_timing_boundaries(ref):
     rn = lab.runner(ref)
     findings, probes = [], 0

@@ -91,3 +91,8 @@ and must not be committed. Nothing was configured or exposed during this task.
 - Flat-world Hypothesis states remove buildings so metamorphic transforms are exact; geometry is covered by
   harvested/synth/gap states instead.
 - Rotation invariance excludes the idle scan (an absolute, time-based yaw sweep by design).
+- Exact ties are excluded from generated states: two enemies at exactly equal distance make v39 pick the first
+  listed, so a translation that changes float rounding can switch the target (harmless with real floats).
+- Generated states never put our mech exactly on the zone centre (atan2(+-0, +-0) depends on the sign of zero).
+- Generated enemies never aim with exactly zero error: v39 picks the laser-sidestep side from the sign of our offset
+  from the beam line, so a dead-centre beam makes the side depend on float rounding (either side is equally good).
