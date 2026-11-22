@@ -20,7 +20,7 @@ THREAT_RANGE = 60.0    # ...and only while it is this close
 CUBE_IDLE_RANGE = 60.0  # walk this far for a cube when nothing is targeted (40 m while fighting/hunting)
 CRATE_RANGE = 40.0      # break crates this close (inside cube reach, so the cube gets collected)
 DRONE_RANGE = 55.0      # farm NPC drones this close (2 cubes per 350 HP, no squad escalation)
-DRONE_CUBE_CAP = 15     # farm drones up to the 15-cube upgrade threshold (plating snowball)
+CUBE_FARM_CAP = 10      # at the 10-cube stat cap, stop voluntary cube farming detours (size keeps growing)
 KILL_LOOT_RANGE = 200.0  # walk this far for the cubes our kill dropped (80 m after LATE_T)
 KILL_LOOT_S = 25.0       # ...within this long after the kill
 PUSH_RANGE = 230.0     # push a weaker, isolated target from this far...
@@ -756,6 +756,7 @@ class Bot:
         now = obs["t"]
         self.kill_spots = [(t, xy) for t, xy in self.kill_spots if now - t <= KILL_LOOT_S]
         shot_at = any(0 <= mid < 16 and now - hit[0] <= THREAT_RECENT_S for mid, hit in self.last_hits.items())
+        capped = (me.get("cubes") or 0) >= CUBE_FARM_CAP
         loot_reach = KILL_LOOT_RANGE if now < LATE_T else 80.0
         for cube_id, location in list(self.cubes.items()):
             distance = math.dist(pos[:2], location[:2])
@@ -764,8 +765,11 @@ class Bot:
                                      or (cube_id not in visible and distance <= 4)):
                 del self.cubes[cube_id]
                 continue
+            loot = any(math.dist(location[:2], xy) <= 12 for _, xy in self.kill_spots)
+            if capped and not pursuing_drop and not loot:
+                continue
             reach = max_distance
-            if not pursuing_drop and not shot_at and any(math.dist(location[:2], xy) <= 12 for _, xy in self.kill_spots):
+            if not pursuing_drop and not shot_at and loot:
                 reach = max(reach, loot_reach)
             if (height <= 3.5
                     and distance <= reach and cube_id not in self.unreachable
@@ -1174,7 +1178,7 @@ class Bot:
             distance = math.hypot(dx, dy)
             hit = self.last_hits.get(npc_id)
             attacking_us = hit is not None and now - hit[0] <= THREAT_RECENT_S
-            farm_ok = now < LATE_T and cubes < DRONE_CUBE_CAP and distance <= DRONE_RANGE
+            farm_ok = now < LATE_T and cubes < CUBE_FARM_CAP and distance <= DRONE_RANGE
             if not (attacking_us or farm_ok):
                 continue
             if abs(dz) > 4.0 or math.dist(m["pos"][:2], zone["next_center"]) > zone["next_radius"]:
@@ -1192,6 +1196,8 @@ class Bot:
 
     def _shoot_crate(self, obs, weapons, act):
         me = obs["self"]
+        if (me.get("cubes") or 0) >= CUBE_FARM_CAP:
+            return False
         x, y, z = me["pos"]
         zone = obs["zone"]
         best = None
