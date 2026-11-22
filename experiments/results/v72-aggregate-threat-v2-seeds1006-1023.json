@@ -1,0 +1,2528 @@
+{
+ "name": "v72-aggregate-threat-v2-seeds1006-1023",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "a027c8c9ef4ced5884d51446c4fc440682ee4bd4",
+ "timestamp": "2026-11-21T23:21:38",
+ "seeds": [
+  1006,
+  1007,
+  1008,
+  1009,
+  1010,
+  1011,
+  1012,
+  1013,
+  1014,
+  1015,
+  1016,
+  1017,
+  1018,
+  1019,
+  1020,
+  1021,
+  1022,
+  1023
+ ],
+ "official_base": 4.73,
+ "official_candidate": null,
+ "submission": null,
+ "local_note": "LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR",
+ "matches": [
+  {
+   "seed": 1006,
+   "decisions": 2304,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1006,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 9,
+     "place": 7,
+     "t": 230.3,
+     "kills": 6,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -6.1,
+     "end_cubes": 6,
+     "dmg_taken": 5142.3,
+     "dmg_dealt": 10632.0
+    },
+    "candidate_outcome": {
+     "score": 9,
+     "place": 7,
+     "t": 230.3,
+     "kills": 6,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -6.1,
+     "end_cubes": 6,
+     "dmg_taken": 5142.3,
+     "dmg_dealt": 10632.0
+    }
+   }
+  },
+  {
+   "seed": 1007,
+   "decisions": 349,
+   "differing": 2,
+   "categories": {
+    "move": 2
+   },
+   "first_divergence": {
+    "seed": 1007,
+    "tick": 380,
+    "t": 19.0,
+    "pos": [
+     311.437,
+     -22.997,
+     4.0
+    ],
+    "vel": [
+     13.815,
+     -13.762,
+     0.0
+    ],
+    "hp": 1170.0,
+    "max_hp": 1512.0,
+    "energy": 72.8,
+    "cubes": 2,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -1.4,
+     -0.037
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 1,
+      "reload": 0.0,
+      "cooldown": 0.19
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 0.1
+     }
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 9,
+      "dist": 94.0,
+      "hp": 1351.4,
+      "charging": false,
+      "aim_err_deg": 4.8,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 2,
+      "dist": 107.9,
+      "hp": 816.8,
+      "charging": false,
+      "aim_err_deg": 0.6,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 14,
+      "dist": 173.7,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 81.1,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "2": 1.3
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      166.078,
+      -165.156
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 2 hp 817 push hp77% c2",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 380,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.7011226768351284,
+      -0.7130406664612783
+     ],
+     "aim": [
+      -1.4165647080532324,
+      -0.0378532208751154
+     ],
+     "boost": true,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 380,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.9851198775399372,
+      -0.1718686326113603
+     ],
+     "aim": [
+      -1.4165647080532324,
+      -0.0378532208751154
+     ],
+     "boost": true,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.7,
+   "paired": {
+    "seed": 1007,
+    "first_divergence_t": 19.0,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -45.0,
+       "pos_delta": 9.3,
+       "energy_delta": -5.9,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -135.0,
+       "pos_delta": 7.1,
+       "energy_delta": -5.9,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -360.0,
+       "pos_delta": 28.6,
+       "energy_delta": 6.2,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -450.0,
+       "pos_delta": 27.3,
+       "energy_delta": 1.8,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 32.8,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -22.5,
+     "end_cubes": 2,
+     "dmg_taken": 1642.5,
+     "dmg_dealt": 3724.7
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 34.9,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -45.0,
+     "end_cubes": 2,
+     "dmg_taken": 1665.0,
+     "dmg_dealt": 3724.7
+    }
+   }
+  },
+  {
+   "seed": 1008,
+   "decisions": 231,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1008,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 23.1,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 2160.0
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 23.1,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 2160.0
+    }
+   }
+  },
+  {
+   "seed": 1009,
+   "decisions": 480,
+   "differing": 7,
+   "categories": {
+    "move": 7
+   },
+   "first_divergence": {
+    "seed": 1009,
+    "tick": 930,
+    "t": 46.5,
+    "pos": [
+     161.838,
+     9.853,
+     6.231
+    ],
+    "vel": [
+     0.27,
+     -0.987,
+     0.0
+    ],
+    "hp": 402.5,
+    "max_hp": 1400.0,
+    "energy": 28.6,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     1.487,
+     -0.208
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 6,
+      "reload": 0.0,
+      "cooldown": 0.14
+     },
+     null
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 1,
+      "dist": 12.6,
+      "hp": 1130.0,
+      "charging": false,
+      "aim_err_deg": 3.7,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 7,
+      "dist": 40.3,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 20.7,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     },
+     {
+      "id": 11,
+      "dist": 71.5,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 3.1,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "7": 2.6,
+     "1": 0.1
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      85.966,
+      -201.053
+     ],
+     "next_radius": 380
+    },
+    "label": "laser hunt fight 1 hp 1130 hp29% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 930,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.6583238699128442,
+      0.7527348021069417
+     ],
+     "aim": [
+      1.4954737179282902,
+      -0.2038792812935394
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 930,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.6557844922281663,
+      -0.7549481437509772
+     ],
+     "aim": [
+      1.4954737179282902,
+      -0.2038792812935394
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1009,
+    "first_divergence_t": 46.5,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -202.5,
+       "pos_delta": 5.3,
+       "energy_delta": 0.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        11
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -202.5,
+       "pos_delta": 2.4,
+       "energy_delta": 0.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        11
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 1.5,
+       "hp_delta": -360.0,
+       "pos_delta": 4.7,
+       "energy_delta": 0.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        11
+       ],
+       "stuck": false,
+       "died_in_window": true
+      },
+      "candidate": {
+       "covered_s": 1.4,
+       "hp_delta": -382.5,
+       "pos_delta": 2.6,
+       "energy_delta": 0.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        11
+       ],
+       "stuck": false,
+       "died_in_window": true
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 48.1,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1830.0,
+     "dmg_dealt": 1575.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 47.9,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1852.5,
+     "dmg_dealt": 1575.0
+    }
+   }
+  },
+  {
+   "seed": 1010,
+   "decisions": 829,
+   "differing": 20,
+   "categories": {
+    "move": 20
+   },
+   "first_divergence": {
+    "seed": 1010,
+    "tick": 1378,
+    "t": 68.9,
+    "pos": [
+     207.704,
+     19.319,
+     6.003
+    ],
+    "vel": [
+     -5.787,
+     2.991,
+     0.0
+    ],
+    "hp": 1399.5,
+    "max_hp": 1512.0,
+    "energy": 79.0,
+    "cubes": 2,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -0.749,
+     -0.191
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 11,
+      "reload": 0.0,
+      "cooldown": 0.19
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 1.6
+     }
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 1,
+      "dist": 13.1,
+      "hp": 1351.4,
+      "charging": false,
+      "aim_err_deg": 2.5,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 7,
+      "dist": 69.7,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 2.6,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 4,
+      "dist": 107.4,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 127.0,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "7": 0.1
+    },
+    "zone": {
+     "center": [
+      69.277,
+      -60.002
+     ],
+     "radius": 527.96,
+     "next_center": [
+      198.474,
+      -0.902
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 1 hp 1351 hp93% c2",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 1378,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.9833686558861754,
+      -0.18162072189212525
+     ],
+     "aim": [
+      -0.7047817277221645,
+      -0.18559470296471092
+     ],
+     "boost": true,
+     "jump": true
+    },
+    "candidate_action": {
+     "tick": 1378,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.42459436044820775,
+      0.9053836916333192
+     ],
+     "aim": [
+      -0.7047817277221645,
+      -0.18559470296471092
+     ],
+     "boost": true,
+     "jump": true
+    }
+   },
+   "reconverged_after": 3.4,
+   "paired": {
+    "seed": 1010,
+    "first_divergence_t": 68.9,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -202.5,
+       "pos_delta": 4.1,
+       "energy_delta": -8.5,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -135.0,
+       "pos_delta": 12.9,
+       "energy_delta": -8.5,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -652.5,
+       "pos_delta": 9.4,
+       "energy_delta": -6.1,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -697.5,
+       "pos_delta": 26.2,
+       "energy_delta": 8.2,
+       "targets": [
+        "1"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 88.0,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -41.0,
+     "end_cubes": 4,
+     "dmg_taken": 2025.0,
+     "dmg_dealt": 3881.4
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 82.8,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -18.0,
+     "end_cubes": 2,
+     "dmg_taken": 1867.5,
+     "dmg_dealt": 3424.2
+    }
+   }
+  },
+  {
+   "seed": 1011,
+   "decisions": 196,
+   "differing": 33,
+   "categories": {
+    "move": 33
+   },
+   "first_divergence": {
+    "seed": 1011,
+    "tick": 140,
+    "t": 7.0,
+    "pos": [
+     349.511,
+     -238.588,
+     2.978
+    ],
+    "vel": [
+     0.107,
+     8.698,
+     0.0
+    ],
+    "hp": 1400.0,
+    "max_hp": 1400.0,
+    "energy": 100.0,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     1.427,
+     -0.189
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 6,
+      "reload": 0.0,
+      "cooldown": 0.19
+     },
+     null
+    ],
+    "visible_enemies": 2,
+    "nearest": [
+     {
+      "id": 9,
+      "dist": 12.8,
+      "hp": 1130.0,
+      "charging": false,
+      "aim_err_deg": 3.0,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 1,
+      "dist": 98.6,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 0.1,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {},
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      29.647,
+      85.58
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 9 hp 1130 hp100% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 140,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.7023654513556896,
+      0.71181653025335
+     ],
+     "aim": [
+      1.3895503061249252,
+      -0.20689218505813264
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 140,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.864041245165731,
+      0.5034210232523598
+     ],
+     "aim": [
+      1.3895503061249252,
+      -0.20689218505813264
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 6.9,
+   "paired": {
+    "seed": 1011,
+    "first_divergence_t": 7.0,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -90.0,
+       "pos_delta": 10.1,
+       "energy_delta": 0.0,
+       "targets": [
+        "9"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -90.0,
+       "pos_delta": 8.3,
+       "energy_delta": 0.0,
+       "targets": [
+        "9"
+       ],
+       "new_attackers": [
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -337.5,
+       "pos_delta": 33.3,
+       "energy_delta": 0.0,
+       "targets": [
+        "9"
+       ],
+       "new_attackers": [
+        1,
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -337.5,
+       "pos_delta": 30.5,
+       "energy_delta": 0.0,
+       "targets": [
+        "9"
+       ],
+       "new_attackers": [
+        1,
+        9
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 19.4,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1395.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 19.5,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -17.5,
+     "end_cubes": 0,
+     "dmg_taken": 1372.5,
+     "dmg_dealt": 1350.0
+    }
+   }
+  },
+  {
+   "seed": 1012,
+   "decisions": 2714,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1012,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 4,
+     "place": 12,
+     "t": 271.4,
+     "kills": 2,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -4.0,
+     "end_cubes": 2,
+     "dmg_taken": 2676.0,
+     "dmg_dealt": 2896.8
+    },
+    "candidate_outcome": {
+     "score": 4,
+     "place": 12,
+     "t": 271.4,
+     "kills": 2,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -4.0,
+     "end_cubes": 2,
+     "dmg_taken": 2676.0,
+     "dmg_dealt": 2896.8
+    }
+   }
+  },
+  {
+   "seed": 1013,
+   "decisions": 340,
+   "differing": 13,
+   "categories": {
+    "move": 13
+   },
+   "first_divergence": {
+    "seed": 1013,
+    "tick": 460,
+    "t": 23.0,
+    "pos": [
+     304.945,
+     -12.651,
+     4.161
+    ],
+    "vel": [
+     -10.95,
+     -4.122,
+     0.0
+    ],
+    "hp": 1355.0,
+    "max_hp": 1400.0,
+    "energy": 71.8,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     0.001,
+     0.0
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 12,
+      "reload": 0.0,
+      "cooldown": 0.0
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 1.05
+     }
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 14,
+      "dist": 45.2,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 136.1,
+      "weapons": [
+       "gun",
+       "laser"
+      ]
+     },
+     {
+      "id": 2,
+      "dist": 51.6,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 1.5,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 5,
+      "dist": 105.4,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 3.0,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "2": 0.0
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      155.845,
+      -68.778
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 2 hp 1400 hp97% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 460,
+     "fire": [
+      false,
+      false
+     ],
+     "move": [
+      -0.5645592282886638,
+      -0.8253925597884368
+     ],
+     "aim": [
+      0.11207237705854851,
+      -0.05540296535400073
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 460,
+     "fire": [
+      false,
+      false
+     ],
+     "move": [
+      -0.44281654786181673,
+      0.8966122377816081
+     ],
+     "aim": [
+      0.11207237705854851,
+      -0.05540296535400073
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.0,
+   "paired": {
+    "seed": 1013,
+    "first_divergence_t": 23.0,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -90.0,
+       "pos_delta": 10.8,
+       "energy_delta": 11.0,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        2
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -135.0,
+       "pos_delta": 9.9,
+       "energy_delta": 18.0,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        2
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -900.0,
+       "pos_delta": 27.9,
+       "energy_delta": 9.1,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        2,
+        5,
+        14
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -315.0,
+       "pos_delta": 22.8,
+       "energy_delta": 28.2,
+       "targets": [
+        "2"
+       ],
+       "new_attackers": [
+        2
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 26.8,
+     "kills": 0,
+     "cause": "laser",
+     "errors": 0,
+     "end_hp": -62.5,
+     "end_cubes": 0,
+     "dmg_taken": 1147.5,
+     "dmg_dealt": 841.4
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 34.0,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1939.1
+    }
+   }
+  },
+  {
+   "seed": 1014,
+   "decisions": 1212,
+   "differing": 17,
+   "categories": {
+    "move": 17
+   },
+   "first_divergence": {
+    "seed": 1014,
+    "tick": 2344,
+    "t": 117.2,
+    "pos": [
+     -9.096,
+     -55.403,
+     0.606
+    ],
+    "vel": [
+     12.688,
+     -3.752,
+     0.0
+    ],
+    "hp": 1400.0,
+    "max_hp": 1400.0,
+    "energy": 88.6,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     1.6,
+     -0.261
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 11,
+      "reload": 0.0,
+      "cooldown": 0.19
+     },
+     null
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 12,
+      "dist": 10.3,
+      "hp": 1355.0,
+      "charging": false,
+      "aim_err_deg": 2.6,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     },
+     {
+      "id": 14,
+      "dist": 59.7,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 1.8,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 2,
+      "dist": 126.6,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 29.6,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {},
+    "zone": {
+     "center": [
+      -73.554,
+      -7.025
+     ],
+     "radius": 380,
+     "next_center": [
+      -31.047,
+      9.938
+     ],
+     "next_radius": 240
+    },
+    "label": "zone fight 12 hp 1355 hp100% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 2344,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9591658708932416,
+      -0.28284418345373386
+     ],
+     "aim": [
+      1.7213753793226159,
+      -0.24938163861179113
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 2344,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.17577280484708185,
+      0.9844307599197567
+     ],
+     "aim": [
+      1.7213753793226159,
+      -0.24938163861179113
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 2.6,
+   "paired": {
+    "seed": 1014,
+    "first_divergence_t": 117.2,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -450.0,
+       "pos_delta": 9.3,
+       "energy_delta": -11.9,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [
+        12,
+        14
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -360.0,
+       "pos_delta": 6.9,
+       "energy_delta": 9.0,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [
+        12,
+        14
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -1275.0,
+       "pos_delta": 23.0,
+       "energy_delta": -45.9,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [
+        12,
+        14
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -990.0,
+       "pos_delta": 18.2,
+       "energy_delta": -17.5,
+       "targets": [
+        "12"
+       ],
+       "new_attackers": [
+        12,
+        14
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 120.6,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 540.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 121.1,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 540.0
+    }
+   }
+  },
+  {
+   "seed": 1015,
+   "decisions": 194,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1015,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 19.3,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 863.9
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 19.3,
+     "kills": 0,
+     "cause": "lightning",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1380.0,
+     "dmg_dealt": 863.9
+    }
+   }
+  },
+  {
+   "seed": 1016,
+   "decisions": 529,
+   "differing": 3,
+   "categories": {
+    "move": 3
+   },
+   "first_divergence": {
+    "seed": 1016,
+    "tick": 738,
+    "t": 36.9,
+    "pos": [
+     11.308,
+     15.076,
+     0.36
+    ],
+    "vel": [
+     -10.65,
+     2.742,
+     0.0
+    ],
+    "hp": 1058.0,
+    "max_hp": 1400.0,
+    "energy": 93.2,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     -3.013,
+     -0.061
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 1,
+      "reload": 0.0,
+      "cooldown": 0.24
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 0.3
+     }
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 2,
+      "dist": 66.5,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 3.0,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 11,
+      "dist": 85.9,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 88.4,
+      "weapons": [
+       "gun",
+       "laser"
+      ]
+     },
+     {
+      "id": 3,
+      "dist": 141.9,
+      "hp": 873.65,
+      "charging": false,
+      "aim_err_deg": 0.1,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "3": 1.9
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      18.155,
+      10.667
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 3 hp 874 hp76% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 738,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9992460360348913,
+      0.038824727540020754
+     ],
+     "aim": [
+      -3.0105199541393715,
+      -0.0609793681028558
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 738,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.023136842782690247,
+      -0.9997323074233667
+     ],
+     "aim": [
+      -3.0105199541393715,
+      -0.0609793681028558
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.2,
+   "paired": {
+    "seed": 1016,
+    "first_divergence_t": 36.9,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -45.0,
+       "pos_delta": 3.1,
+       "energy_delta": 6.8,
+       "targets": [
+        "3"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -45.0,
+       "pos_delta": 4.1,
+       "energy_delta": 6.8,
+       "targets": [
+        "3"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -180.0,
+       "pos_delta": 10.8,
+       "energy_delta": -3.4,
+       "targets": [
+        "3"
+       ],
+       "new_attackers": [
+        2
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -315.0,
+       "pos_delta": 5.5,
+       "energy_delta": -3.4,
+       "targets": [
+        "3"
+       ],
+       "new_attackers": [
+        2
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 53.4,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -67.0,
+     "end_cubes": 0,
+     "dmg_taken": 1440.0,
+     "dmg_dealt": 4300.8
+    },
+    "candidate_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 52.8,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -22.0,
+     "end_cubes": 0,
+     "dmg_taken": 1417.5,
+     "dmg_dealt": 4300.8
+    }
+   }
+  },
+  {
+   "seed": 1017,
+   "decisions": 1081,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1017,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 108.1,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -20.2,
+     "end_cubes": 2,
+     "dmg_taken": 2272.5,
+     "dmg_dealt": 4103.1
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 108.1,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -20.2,
+     "end_cubes": 2,
+     "dmg_taken": 2272.5,
+     "dmg_dealt": 4103.1
+    }
+   }
+  },
+  {
+   "seed": 1018,
+   "decisions": 488,
+   "differing": 1,
+   "categories": {
+    "move": 1
+   },
+   "first_divergence": {
+    "seed": 1018,
+    "tick": 966,
+    "t": 48.3,
+    "pos": [
+     188.102,
+     -164.131,
+     5.679
+    ],
+    "vel": [
+     -2.448,
+     -12.874,
+     0.0
+    ],
+    "hp": 280.8,
+    "max_hp": 1738.8,
+    "energy": 89.8,
+    "cubes": 2,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     1.502,
+     -0.052
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 0,
+      "reload": 0.15,
+      "cooldown": 0.0
+     },
+     {
+      "kind": "laser",
+      "charge": 0.0,
+      "cooldown": 0.1
+     }
+    ],
+    "visible_enemies": 3,
+    "nearest": [
+     {
+      "id": 14,
+      "dist": 32.8,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 2.4,
+      "weapons": [
+       "gun",
+       "lightning"
+      ]
+     },
+     {
+      "id": 13,
+      "dist": 45.4,
+      "hp": 734.34,
+      "charging": false,
+      "aim_err_deg": 0.5,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 7,
+      "dist": 186.8,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 0.2,
+      "weapons": [
+       "gun",
+       "laser"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "13": 1.6
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      -38.481,
+      -199.494
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 13 hp 734 hp16% c2",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 966,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.44039917034449133,
+      -0.8978020777208547
+     ],
+     "aim": [
+      1.5106338700582964,
+      -0.05338883406711742
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 966,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.667747565829569,
+      0.7443877943173742
+     ],
+     "aim": [
+      1.5106338700582964,
+      -0.05338883406711742
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1018,
+    "first_divergence_t": 48.3,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 0.4,
+       "hp_delta": -157.5,
+       "pos_delta": 4.7,
+       "energy_delta": 0.0,
+       "targets": [
+        "13"
+       ],
+       "new_attackers": [
+        14
+       ],
+       "stuck": false,
+       "died_in_window": true
+      },
+      "candidate": {
+       "covered_s": 0.4,
+       "hp_delta": -157.5,
+       "pos_delta": 4.2,
+       "energy_delta": 0.0,
+       "targets": [
+        "13"
+       ],
+       "new_attackers": [
+        14
+       ],
+       "stuck": false,
+       "died_in_window": true
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 0.4,
+       "hp_delta": -157.5,
+       "pos_delta": 4.7,
+       "energy_delta": 0.0,
+       "targets": [
+        "13"
+       ],
+       "new_attackers": [
+        14
+       ],
+       "stuck": false,
+       "died_in_window": true
+      },
+      "candidate": {
+       "covered_s": 0.4,
+       "hp_delta": -157.5,
+       "pos_delta": 4.2,
+       "energy_delta": 0.0,
+       "targets": [
+        "13"
+       ],
+       "new_attackers": [
+        14
+       ],
+       "stuck": false,
+       "died_in_window": true
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 48.8,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -34.2,
+     "end_cubes": 2,
+     "dmg_taken": 1777.5,
+     "dmg_dealt": 5343.3
+    },
+    "candidate_outcome": {
+     "score": 3,
+     "place": 13,
+     "t": 48.8,
+     "kills": 3,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -34.2,
+     "end_cubes": 2,
+     "dmg_taken": 1777.5,
+     "dmg_dealt": 5343.3
+    }
+   }
+  },
+  {
+   "seed": 1019,
+   "decisions": 476,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1019,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 47.5,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1320.0,
+     "dmg_dealt": 900.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 47.5,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -25.0,
+     "end_cubes": 0,
+     "dmg_taken": 1320.0,
+     "dmg_dealt": 900.0
+    }
+   }
+  },
+  {
+   "seed": 1020,
+   "decisions": 2045,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1020,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 204.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.2,
+     "end_cubes": 0,
+     "dmg_taken": 1395.2,
+     "dmg_dealt": 0
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 204.5,
+     "kills": 0,
+     "cause": "zone",
+     "errors": 0,
+     "end_hp": -1.2,
+     "end_cubes": 0,
+     "dmg_taken": 1395.2,
+     "dmg_dealt": 0
+    }
+   }
+  },
+  {
+   "seed": 1021,
+   "decisions": 776,
+   "differing": 0,
+   "categories": {},
+   "first_divergence": null,
+   "reconverged_after": null,
+   "paired": {
+    "seed": 1021,
+    "first_divergence_t": null,
+    "windows": {},
+    "base_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 77.6,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.5,
+     "end_cubes": 2,
+     "dmg_taken": 2092.5,
+     "dmg_dealt": 3245.2
+    },
+    "candidate_outcome": {
+     "score": 2,
+     "place": 14,
+     "t": 77.6,
+     "kills": 2,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.5,
+     "end_cubes": 2,
+     "dmg_taken": 2092.5,
+     "dmg_dealt": 3245.2
+    }
+   }
+  },
+  {
+   "seed": 1022,
+   "decisions": 459,
+   "differing": 1,
+   "categories": {
+    "move": 1
+   },
+   "first_divergence": {
+    "seed": 1022,
+    "tick": 748,
+    "t": 37.4,
+    "pos": [
+     24.862,
+     0.116,
+     1.149
+    ],
+    "vel": [
+     5.379,
+     2.3,
+     0.0
+    ],
+    "hp": 860.0,
+    "max_hp": 1400.0,
+    "energy": 100.0,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     0.109,
+     -0.034
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 0,
+      "reload": 2.2,
+      "cooldown": 0.04
+     },
+     {
+      "kind": "laser",
+      "charge": 0.7,
+      "cooldown": 0.0
+     }
+    ],
+    "visible_enemies": 2,
+    "nearest": [
+     {
+      "id": 4,
+      "dist": 29.7,
+      "hp": 558.65,
+      "charging": false,
+      "aim_err_deg": 4.6,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 1,
+      "dist": 38.9,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 2.2,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "4": 0.1
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      106.298,
+      -17.311
+     ],
+     "next_radius": 380
+    },
+    "label": "zone fight 4 hp 559 hp61% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 748,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9210415812390886,
+      0.3894642546224225
+     ],
+     "aim": [
+      0.10328450069511662,
+      -0.034035559319957776
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 748,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      -0.4696295444922582,
+      0.8828635743646885
+     ],
+     "aim": [
+      0.10328450069511662,
+      -0.034035559319957776
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.0,
+   "paired": {
+    "seed": 1022,
+    "first_divergence_t": 37.4,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -202.5,
+       "pos_delta": 10.2,
+       "energy_delta": 0.0,
+       "targets": [
+        "4"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -202.5,
+       "pos_delta": 8.7,
+       "energy_delta": 0.0,
+       "targets": [
+        "4"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -585.0,
+       "pos_delta": 23.9,
+       "energy_delta": -8.5,
+       "targets": [
+        "4"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -585.0,
+       "pos_delta": 19.0,
+       "energy_delta": -8.5,
+       "targets": [
+        "4"
+       ],
+       "new_attackers": [
+        1
+       ],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 74.2,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -16.2,
+     "end_cubes": 2,
+     "dmg_taken": 2340.0,
+     "dmg_dealt": 2786.5
+    },
+    "candidate_outcome": {
+     "score": 1,
+     "place": 15,
+     "t": 45.9,
+     "kills": 1,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1939.1
+    }
+   }
+  },
+  {
+   "seed": 1023,
+   "decisions": 231,
+   "differing": 8,
+   "categories": {
+    "move": 8
+   },
+   "first_divergence": {
+    "seed": 1023,
+    "tick": 326,
+    "t": 16.3,
+    "pos": [
+     188.405,
+     -165.476,
+     5.678
+    ],
+    "vel": [
+     11.663,
+     0.933,
+     0.0
+    ],
+    "hp": 905.0,
+    "max_hp": 1400.0,
+    "energy": 29.2,
+    "cubes": 0,
+    "grounded": true,
+    "in_zone": true,
+    "aim": [
+     0.446,
+     -0.072
+    ],
+    "weapons": [
+     {
+      "kind": "gun",
+      "ammo": 7,
+      "reload": 0.0,
+      "cooldown": 0.04
+     },
+     null
+    ],
+    "visible_enemies": 2,
+    "nearest": [
+     {
+      "id": 7,
+      "dist": 44.0,
+      "hp": 950.0,
+      "charging": false,
+      "aim_err_deg": 4.0,
+      "weapons": [
+       "gun"
+      ]
+     },
+     {
+      "id": 1,
+      "dist": 82.8,
+      "hp": 1400.0,
+      "charging": false,
+      "aim_err_deg": 3.0,
+      "weapons": [
+       "gun"
+      ]
+     }
+    ],
+    "charging_ids": [],
+    "recent_attackers": {
+     "7": 0.7
+    },
+    "zone": {
+     "center": [
+      41.3,
+      -72.8
+     ],
+     "radius": 560,
+     "next_center": [
+      -27.016,
+      -223.529
+     ],
+     "next_radius": 380
+    },
+    "label": "laser hunt fight 7 hp 950 hp65% c0",
+    "fields": [
+     "move"
+    ],
+    "base_action": {
+     "tick": 326,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9961445870607847,
+      0.08772663033252076
+     ],
+     "aim": [
+      0.45052004277817326,
+      -0.07283813579218544
+     ],
+     "boost": false,
+     "jump": false
+    },
+    "candidate_action": {
+     "tick": 326,
+     "fire": [
+      true,
+      false
+     ],
+     "move": [
+      0.9322418419845675,
+      0.3618358026138663
+     ],
+     "aim": [
+      0.45052004277817326,
+      -0.07283813579218544
+     ],
+     "boost": false,
+     "jump": false
+    }
+   },
+   "reconverged_after": 1.7,
+   "paired": {
+    "seed": 1023,
+    "first_divergence_t": 16.3,
+    "windows": {
+     "1s": {
+      "base": {
+       "covered_s": 1.0,
+       "hp_delta": -45.0,
+       "pos_delta": 9.3,
+       "energy_delta": 0.2,
+       "targets": [
+        "7"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 1.0,
+       "hp_delta": -45.0,
+       "pos_delta": 10.2,
+       "energy_delta": 0.2,
+       "targets": [
+        "7"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     },
+     "3s": {
+      "base": {
+       "covered_s": 3.0,
+       "hp_delta": -315.0,
+       "pos_delta": 3.8,
+       "energy_delta": 19.3,
+       "targets": [
+        "7"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      },
+      "candidate": {
+       "covered_s": 3.0,
+       "hp_delta": -450.0,
+       "pos_delta": 31.6,
+       "energy_delta": 0.4,
+       "targets": [
+        "7"
+       ],
+       "new_attackers": [],
+       "stuck": false,
+       "died_in_window": false
+      }
+     }
+    },
+    "base_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 24.8,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -40.0,
+     "end_cubes": 0,
+     "dmg_taken": 1395.0,
+     "dmg_dealt": 1305.0
+    },
+    "candidate_outcome": {
+     "score": 0,
+     "place": 16,
+     "t": 23.1,
+     "kills": 0,
+     "cause": "gun",
+     "errors": 0,
+     "end_hp": -17.5,
+     "end_cubes": 0,
+     "dmg_taken": 1350.0,
+     "dmg_dealt": 1260.0
+    }
+   }
+  }
+ ],
+ "activation": {},
+ "summary": {
+  "matches": 18,
+  "decisions": 14934,
+  "differing": 105,
+  "matches_diverged": 10,
+  "categories": {
+   "move": 105
+  }
+ }
+}
