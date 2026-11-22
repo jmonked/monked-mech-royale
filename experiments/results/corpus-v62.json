@@ -1,0 +1,717 @@
+{
+ "name": "v62",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "a023e35a15df4f425691bb2c8fdee257063e78a3",
+ "timestamp": "2026-11-21T23:44:41",
+ "scenarios": 4472,
+ "verdicts": {
+  "identical": 2795,
+  "safer": 260,
+  "worse": 110,
+  "uncertain": 1108,
+  "catastrophic": 199
+ },
+ "by_category": {
+  "multi-threat": {
+   "identical": 352,
+   "safer": 49,
+   "worse": 22,
+   "uncertain": 259,
+   "catastrophic": 29
+  },
+  "laser-crossfire": {
+   "identical": 247,
+   "safer": 32,
+   "worse": 14,
+   "uncertain": 178,
+   "catastrophic": 43
+  },
+  "dodge-conflict": {
+   "identical": 223,
+   "safer": 46,
+   "worse": 20,
+   "uncertain": 183,
+   "catastrophic": 28
+  },
+  "cover-conflict": {
+   "identical": 232,
+   "safer": 50,
+   "worse": 21,
+   "uncertain": 202,
+   "catastrophic": 35
+  },
+  "unstick-conflict": {
+   "identical": 472,
+   "safer": 25,
+   "worse": 20,
+   "uncertain": 66,
+   "catastrophic": 29
+  },
+  "sound-boundaries": {
+   "identical": 259,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "zone-pressure": {
+   "identical": 201,
+   "safer": 24,
+   "worse": 8,
+   "uncertain": 71,
+   "catastrophic": 18
+  },
+  "regression": {
+   "identical": 5,
+   "safer": 2,
+   "worse": 0,
+   "uncertain": 7,
+   "catastrophic": 0
+  },
+  "hypothesis": {
+   "identical": 804,
+   "safer": 32,
+   "worse": 5,
+   "uncertain": 142,
+   "catastrophic": 17
+  }
+ },
+ "fields_changed": {
+  "move": 1677
+ },
+ "reasons": {
+  "avoids walking at 2+ attackers": 228,
+  "C6 boosts into a wall": 84,
+  "walks straight at an active attacker": 113,
+  "C2 walks at 2+ attackers": 60,
+  "C4 steps into live laser line": 52,
+  "steps out of live laser line": 40,
+  "C5 leaves next circle": 7,
+  "stays in next circle": 6
+ },
+ "activation_tokens": {
+  "aggregate": 1819
+ },
+ "coverage": null,
+ "examples": {
+  "catastrophic": [
+   {
+    "name": "multi-threat-s1009-t46.7",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "laser hunt fight 1 hp 1085 hp26% c0",
+    "cand_label": "laser hunt fight 1 hp 1085 aggregate hp26% c0",
+    "base_move": [
+     -0.651,
+     0.759
+    ],
+    "cand_move": [
+     0.852,
+     -0.524
+    ]
+   },
+   {
+    "name": "multi-threat-s1014-t119.8",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 905 tp-cover hp26% c0",
+    "cand_label": "zone fight 12 hp 905 tp-cover aggregate hp26% c0",
+    "base_move": [
+     1.0,
+     0.031
+    ],
+    "cand_move": [
+     0.364,
+     -0.931
+    ]
+   },
+   {
+    "name": "multi-threat-s1014-t120.1",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 860 tp-cover hp15% c0",
+    "cand_label": "zone fight 12 hp 860 tp-cover aggregate hp15% c0",
+    "base_move": [
+     0.995,
+     -0.1
+    ],
+    "cand_move": [
+     0.345,
+     -0.939
+    ]
+   },
+   {
+    "name": "multi-threat-s1014-t120.4",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 860 tp-cover hp1% c0",
+    "cand_label": "zone fight 12 hp 860 tp-cover aggregate hp1% c0",
+    "base_move": [
+     0.97,
+     -0.245
+    ],
+    "cand_move": [
+     0.401,
+     -0.916
+    ]
+   },
+   {
+    "name": "multi-threat-s1021-t73.2",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "drop-walk fight 1 hp 627 tp-cover hp69% c2",
+    "cand_label": "drop-walk fight 1 hp 627 tp-cover aggregate hp69% c2",
+    "base_move": [
+     0.541,
+     0.841
+    ],
+    "cand_move": [
+     -0.195,
+     0.981
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1006-t213.0",
+    "category": "multi-threat",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "drop-walk fight 14 hp 1400 tp-cover hp52% c6 chg",
+    "cand_label": "drop-walk fight 14 hp 1400 tp-cover aggregate hp52% c6 chg",
+    "base_move": [
+     -0.66,
+     0.751
+    ],
+    "cand_move": [
+     0.341,
+     0.94
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1006-t213.0",
+    "category": "multi-threat",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "drop-walk fight 14 hp 1400 tp-cover hp52% c6 chg",
+    "cand_label": "drop-walk fight 14 hp 1400 tp-cover aggregate hp52% c6 chg",
+    "base_move": [
+     -0.545,
+     0.839
+    ],
+    "cand_move": [
+     0.648,
+     0.762
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1011-t13.4",
+    "category": "multi-threat",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     0.587,
+     -0.809
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1014-t119.8",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 905 tp-cover hp26% c0",
+    "cand_label": "zone fight 12 hp 905 tp-cover aggregate hp26% c0",
+    "base_move": [
+     1.0,
+     0.031
+    ],
+    "cand_move": [
+     0.124,
+     -0.992
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1014-t120.1",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 860 tp-cover hp15% c0",
+    "cand_label": "zone fight 12 hp 860 tp-cover aggregate hp15% c0",
+    "base_move": [
+     0.995,
+     -0.1
+    ],
+    "cand_move": [
+     0.577,
+     -0.817
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1014-t120.1",
+    "category": "multi-threat",
+    "reasons": [
+     "C6 boosts into a wall"
+    ],
+    "base_label": "zone fight 12 hp 860 tp-cover hp15% c0",
+    "cand_label": "zone fight 12 hp 860 tp-cover aggregate hp15% c0",
+    "base_move": [
+     0.995,
+     -0.1
+    ],
+    "cand_move": [
+     0.219,
+     -0.976
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1014-t120.4",
+    "category": "multi-threat",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 12 hp 860 tp-cover hp1% c0",
+    "cand_label": "zone fight 12 hp 860 tp-cover aggregate hp1% c0",
+    "base_move": [
+     0.97,
+     -0.245
+    ],
+    "cand_move": [
+     -0.148,
+     0.989
+    ]
+   }
+  ],
+  "worse": [
+   {
+    "name": "multi-threat-s1010-t72.9",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 1 hp 574 tp-cover hp46% c2 chg",
+    "cand_label": "zone fight 1 hp 574 tp-cover aggregate hp46% c2 chg",
+    "base_move": [
+     -0.442,
+     -0.897
+    ],
+    "cand_move": [
+     0.998,
+     0.064
+    ]
+   },
+   {
+    "name": "multi-threat-s1010-t73.2",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 1 hp 574 tp-cover hp46% c2 chg",
+    "cand_label": "zone fight 1 hp 574 tp-cover aggregate hp46% c2 chg",
+    "base_move": [
+     -0.446,
+     -0.895
+    ],
+    "cand_move": [
+     0.995,
+     0.098
+    ]
+   },
+   {
+    "name": "multi-threat-s1018-t48.6",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 13 hp 734 hp7% c2 chg",
+    "cand_label": "zone fight 13 hp 734 aggregate hp7% c2 chg",
+    "base_move": [
+     -0.452,
+     -0.892
+    ],
+    "cand_move": [
+     0.681,
+     0.732
+    ]
+   },
+   {
+    "name": "multi-threat-s1021-t76.5",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "cube fight 10 hp 1400 tp-cover hp9% c2",
+    "cand_label": "cube fight 10 hp 1400 tp-cover aggregate hp9% c2",
+    "base_move": [
+     0.585,
+     -0.811
+    ],
+    "cand_move": [
+     -0.14,
+     0.99
+    ]
+   },
+   {
+    "name": "multi-threat-s1021-t76.8",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "cube fight 10 hp 1400 tp-cover hp6% c2",
+    "cand_label": "cube fight 10 hp 1400 tp-cover aggregate hp6% c2",
+    "base_move": [
+     0.454,
+     -0.891
+    ],
+    "cand_move": [
+     -0.054,
+     0.999
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1010-t73.2",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 1 hp 574 tp-cover hp46% c2 chg",
+    "cand_label": "zone fight 1 hp 574 tp-cover aggregate hp46% c2 chg",
+    "base_move": [
+     -0.127,
+     -0.992
+    ],
+    "cand_move": [
+     0.993,
+     -0.121
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1019-t46.5",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 2 hp 1220 hp13% c0",
+    "cand_label": "zone fight 2 hp 1220 aggregate hp13% c0",
+    "base_move": [
+     0.62,
+     -0.784
+    ],
+    "cand_move": [
+     0.681,
+     -0.733
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1019-t47.1",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 2 hp 1220 hp13% c0",
+    "cand_label": "zone fight 2 hp 1220 aggregate hp13% c0",
+    "base_move": [
+     0.607,
+     -0.795
+    ],
+    "cand_move": [
+     0.926,
+     -0.379
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1021-t76.8",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "cube fight 10 hp 1400 hp6% c2",
+    "cand_label": "cube fight 10 hp 1400 aggregate hp6% c2",
+    "base_move": [
+     0.432,
+     -0.902
+    ],
+    "cand_move": [
+     -0.054,
+     0.999
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1023-t12.8",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp81% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp81% c0",
+    "base_move": [
+     -1.0,
+     0.021
+    ],
+    "cand_move": [
+     0.346,
+     -0.938
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1023-t13.4",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     0.042,
+     0.999
+    ],
+    "cand_move": [
+     -0.969,
+     -0.247
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1023-t14.3",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 tp-cover hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 tp-cover aggregate hp78% c0",
+    "base_move": [
+     0.254,
+     -0.967
+    ],
+    "cand_move": [
+     -0.997,
+     -0.073
+    ]
+   }
+  ],
+  "safer": [
+   {
+    "name": "multi-threat-s1004-t57.3",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 571 tp-cover hp25% c6",
+    "cand_label": "zone fight 3 hp 571 tp-cover aggregate hp25% c6",
+    "base_move": [
+     0.973,
+     0.233
+    ],
+    "cand_move": [
+     -0.107,
+     0.994
+    ]
+   },
+   {
+    "name": "multi-threat-s1004-t57.6",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 498 tp-cover hp20% c6",
+    "cand_label": "zone fight 3 hp 498 tp-cover aggregate hp20% c6",
+    "base_move": [
+     0.98,
+     0.2
+    ],
+    "cand_move": [
+     -0.078,
+     0.997
+    ]
+   },
+   {
+    "name": "multi-threat-s1023-t13.7",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     0.999,
+     -0.041
+    ],
+    "cand_move": [
+     -0.301,
+     0.954
+    ]
+   },
+   {
+    "name": "multi-threat-s1023-t14.0",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     1.0,
+     -0.019
+    ],
+    "cand_move": [
+     -0.314,
+     0.949
+    ]
+   },
+   {
+    "name": "multi-threat-s1023-t14.3",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     1.0,
+     0.008
+    ],
+    "cand_move": [
+     -0.331,
+     0.944
+    ]
+   },
+   {
+    "name": "multi-threat-s1023-t14.6",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     0.999,
+     0.032
+    ],
+    "cand_move": [
+     -0.348,
+     0.938
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1001-t41.6",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 15 hp 1265 ldodge hp61% c0",
+    "cand_label": "zone fight 15 hp 1265 ldodge aggregate hp61% c0",
+    "base_move": [
+     0.635,
+     -0.773
+    ],
+    "cand_move": [
+     -0.708,
+     0.706
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1004-t56.3",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 1257 tp-cover hp31% c6 chg",
+    "cand_label": "zone fight 3 hp 1257 tp-cover aggregate hp31% c6 chg",
+    "base_move": [
+     0.959,
+     0.283
+    ],
+    "cand_move": [
+     0.558,
+     -0.83
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1004-t57.3",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 571 tp-cover hp25% c6",
+    "cand_label": "zone fight 3 hp 571 tp-cover aggregate hp25% c6",
+    "base_move": [
+     0.973,
+     0.233
+    ],
+    "cand_move": [
+     -0.107,
+     0.994
+    ]
+   },
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1004-t57.3",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 571 tp-cover hp25% c6",
+    "cand_label": "zone fight 3 hp 571 tp-cover aggregate hp25% c6",
+    "base_move": [
+     0.973,
+     0.233
+    ],
+    "cand_move": [
+     0.347,
+     0.938
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1004-t57.6",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 498 tp-cover hp20% c6",
+    "cand_label": "zone fight 3 hp 498 tp-cover aggregate hp20% c6",
+    "base_move": [
+     0.98,
+     0.2
+    ],
+    "cand_move": [
+     -0.078,
+     0.997
+    ]
+   },
+   {
+    "name": "multi-threat-2att-multi-threat-s1004-t57.9",
+    "category": "multi-threat",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 424 tp-cover hp18% c6",
+    "cand_label": "zone fight 3 hp 424 tp-cover aggregate hp18% c6",
+    "base_move": [
+     0.465,
+     -0.886
+    ],
+    "cand_move": [
+     -0.117,
+     0.993
+    ]
+   }
+  ]
+ },
+ "note": "Static single-decision verdicts. 'uncertain' = differs but no proof either way. LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR"
+}

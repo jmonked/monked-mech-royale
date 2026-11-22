@@ -1,0 +1,715 @@
+{
+ "name": "v72b",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "50801ce96314bb18268cce6228b80d741e252c6a",
+ "timestamp": "2026-11-21T23:44:51",
+ "scenarios": 4472,
+ "verdicts": {
+  "identical": 4228,
+  "safer": 29,
+  "worse": 12,
+  "uncertain": 190,
+  "catastrophic": 13
+ },
+ "by_category": {
+  "multi-threat": {
+   "identical": 661,
+   "safer": 0,
+   "worse": 1,
+   "uncertain": 49,
+   "catastrophic": 0
+  },
+  "laser-crossfire": {
+   "identical": 494,
+   "safer": 2,
+   "worse": 0,
+   "uncertain": 16,
+   "catastrophic": 2
+  },
+  "dodge-conflict": {
+   "identical": 474,
+   "safer": 3,
+   "worse": 2,
+   "uncertain": 20,
+   "catastrophic": 1
+  },
+  "cover-conflict": {
+   "identical": 512,
+   "safer": 3,
+   "worse": 0,
+   "uncertain": 24,
+   "catastrophic": 1
+  },
+  "unstick-conflict": {
+   "identical": 593,
+   "safer": 2,
+   "worse": 4,
+   "uncertain": 9,
+   "catastrophic": 4
+  },
+  "sound-boundaries": {
+   "identical": 259,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "zone-pressure": {
+   "identical": 301,
+   "safer": 8,
+   "worse": 1,
+   "uncertain": 12,
+   "catastrophic": 0
+  },
+  "regression": {
+   "identical": 14,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "hypothesis": {
+   "identical": 920,
+   "safer": 11,
+   "worse": 4,
+   "uncertain": 60,
+   "catastrophic": 5
+  }
+ },
+ "fields_changed": {
+  "move": 244
+ },
+ "reasons": {
+  "walks straight at an active attacker": 16,
+  "C4 steps into live laser line": 4,
+  "steps out of live laser line": 11,
+  "avoids walking at 2+ attackers": 21,
+  "C2 walks at 2+ attackers": 9,
+  "stays in next circle": 1
+ },
+ "activation_tokens": {
+  "aggregate": 244
+ },
+ "coverage": null,
+ "examples": {
+  "catastrophic": [
+   {
+    "name": "laser-crossfire-2lasers-multi-threat-s1011-t10.7",
+    "category": "laser-crossfire",
+    "reasons": [
+     "C4 steps into live laser line"
+    ],
+    "base_label": "zone fight 9 hp 860 hp65% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp65% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     -0.731,
+     -0.683
+    ]
+   },
+   {
+    "name": "laser-crossfire-2lasers-multi-threat-s1011-t13.4",
+    "category": "laser-crossfire",
+    "reasons": [
+     "C4 steps into live laser line"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -0.776,
+     0.63
+    ]
+   },
+   {
+    "name": "dodge-conflict-laser-sidestep+unseen-multi-threat-s1011-t13.4",
+    "category": "dodge-conflict",
+    "reasons": [
+     "C4 steps into live laser line"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -1.0,
+     -0.027
+    ]
+   },
+   {
+    "name": "cover-conflict-tp+charging-multi-threat-s1011-t13.4",
+    "category": "cover-conflict",
+    "reasons": [
+     "C4 steps into live laser line"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -0.947,
+     0.321
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1000-t15.8",
+    "category": "unstick-conflict",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 860 hp47% c0",
+    "cand_label": "zone fight 1 hp 860 aggregate hp47% c0",
+    "base_move": [
+     -0.413,
+     -0.911
+    ],
+    "cand_move": [
+     0.184,
+     -0.983
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1023-t17.2",
+    "category": "unstick-conflict",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 770 hp61% c0",
+    "cand_label": "laser hunt fight 7 hp 770 aggregate hp61% c0",
+    "base_move": [
+     -0.987,
+     -0.162
+    ],
+    "cand_move": [
+     0.802,
+     0.597
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1023-t18.1",
+    "category": "unstick-conflict",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 7 hp 635 hp55% c0",
+    "cand_label": "zone fight 7 hp 635 aggregate hp55% c0",
+    "base_move": [
+     -0.786,
+     0.619
+    ],
+    "cand_move": [
+     0.863,
+     0.505
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1023-t18.4",
+    "category": "unstick-conflict",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 7 hp 635 hp49% c0",
+    "cand_label": "zone fight 7 hp 635 aggregate hp49% c0",
+    "base_move": [
+     -0.782,
+     0.623
+    ],
+    "cand_move": [
+     0.882,
+     0.471
+    ]
+   },
+   {
+    "name": "hyp-unstick",
+    "category": "hypothesis",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 2 hp 471 hp56% c8",
+    "cand_label": "zone fight 2 hp 471 aggregate hp56% c8",
+    "base_move": [
+     -0.938,
+     -0.346
+    ],
+    "cand_move": [
+     0.734,
+     -0.68
+    ]
+   },
+   {
+    "name": "hyp-any",
+    "category": "hypothesis",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 528 hp60% c16",
+    "cand_label": "zone fight 1 hp 528 aggregate hp60% c16",
+    "base_move": [
+     0.721,
+     0.693
+    ],
+    "cand_move": [
+     0.897,
+     -0.443
+    ]
+   },
+   {
+    "name": "hyp-unstick",
+    "category": "hypothesis",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 675 hp57% c11",
+    "cand_label": "zone fight 1 hp 675 aggregate hp57% c11",
+    "base_move": [
+     0.996,
+     -0.087
+    ],
+    "cand_move": [
+     0.402,
+     0.916
+    ]
+   },
+   {
+    "name": "hyp-unstick",
+    "category": "hypothesis",
+    "reasons": [
+     "C2 walks at 2+ attackers"
+    ],
+    "base_label": "zone fight 3 hp 433 hp98% c3",
+    "cand_label": "zone fight 3 hp 433 aggregate hp98% c3",
+    "base_move": [
+     -0.797,
+     -0.604
+    ],
+    "cand_move": [
+     -0.253,
+     0.967
+    ]
+   }
+  ],
+  "worse": [
+   {
+    "name": "multi-threat-3att-unseen-multi-threat-s1011-t13.4",
+    "category": "multi-threat",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -0.988,
+     0.157
+    ]
+   },
+   {
+    "name": "dodge-conflict-laser-sidestep+unseen-multi-threat-s1011-t10.4",
+    "category": "dodge-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 9 hp 860 hp69% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp69% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     -0.881,
+     0.473
+    ]
+   },
+   {
+    "name": "dodge-conflict-bullet+2att-multi-threat-s1011-t13.4",
+    "category": "dodge-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 9 hp 500 hp42% c0",
+    "cand_label": "zone fight 9 hp 500 aggregate hp42% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     0.687,
+     -0.727
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1010-t71.4",
+    "category": "unstick-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 1 hp 671 hp55% c2",
+    "cand_label": "zone fight 1 hp 671 aggregate hp55% c2",
+    "base_move": [
+     -0.755,
+     -0.656
+    ],
+    "cand_move": [
+     -0.995,
+     -0.104
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1011-t11.0",
+    "category": "unstick-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 9 hp 860 hp58% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -0.894,
+     0.447
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1011-t11.6",
+    "category": "unstick-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 9 hp 815 hp52% c0",
+    "cand_label": "zone fight 9 hp 815 aggregate hp52% c0",
+    "base_move": [
+     -0.708,
+     -0.706
+    ],
+    "cand_move": [
+     -0.998,
+     -0.055
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1021-t76.8",
+    "category": "unstick-conflict",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "cube fight 10 hp 1400 hp6% c2",
+    "cand_label": "cube fight 10 hp 1400 aggregate hp6% c2",
+    "base_move": [
+     0.432,
+     -0.902
+    ],
+    "cand_move": [
+     -0.054,
+     0.999
+    ]
+   },
+   {
+    "name": "zone-pressure-edge+2att-cover-conflict-s1014-t119.8",
+    "category": "zone-pressure",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 12 hp 905 hp26% c0",
+    "cand_label": "zone fight 12 hp 905 aggregate hp26% c0",
+    "base_move": [
+     0.58,
+     -0.815
+    ],
+    "cand_move": [
+     -0.684,
+     -0.73
+    ]
+   },
+   {
+    "name": "hyp-unstick",
+    "category": "hypothesis",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 2 hp 444 hp13% c11",
+    "cand_label": "zone fight 2 hp 444 aggregate hp13% c11",
+    "base_move": [
+     0.753,
+     0.658
+    ],
+    "cand_move": [
+     -0.563,
+     0.826
+    ]
+   },
+   {
+    "name": "hyp-cover",
+    "category": "hypothesis",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 2 hp 1033 hp68% c13",
+    "cand_label": "zone fight 2 hp 1033 aggregate hp68% c13",
+    "base_move": [
+     0.999,
+     0.036
+    ],
+    "cand_move": [
+     0.56,
+     0.829
+    ]
+   },
+   {
+    "name": "hyp-unstick",
+    "category": "hypothesis",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 1 hp 1232 hp84% c16",
+    "cand_label": "zone fight 1 hp 1232 aggregate hp84% c16",
+    "base_move": [
+     0.961,
+     -0.276
+    ],
+    "cand_move": [
+     -0.51,
+     -0.86
+    ]
+   },
+   {
+    "name": "hyp-multi",
+    "category": "hypothesis",
+    "reasons": [
+     "walks straight at an active attacker"
+    ],
+    "base_label": "zone fight 2 hp 815 hp29% c0",
+    "cand_label": "zone fight 2 hp 815 aggregate hp29% c0",
+    "base_move": [
+     -0.917,
+     0.398
+    ],
+    "cand_move": [
+     -0.111,
+     -0.994
+    ]
+   }
+  ],
+  "safer": [
+   {
+    "name": "laser-crossfire-laser+gun-multi-threat-s1011-t11.0",
+    "category": "laser-crossfire",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 860 hp58% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.447,
+     0.894
+    ]
+   },
+   {
+    "name": "laser-crossfire-2lasers-multi-threat-s1011-t11.0",
+    "category": "laser-crossfire",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 860 hp58% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.447,
+     0.894
+    ]
+   },
+   {
+    "name": "dodge-conflict-laser-sidestep+unseen-multi-threat-s1010-t71.4",
+    "category": "dodge-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 1 hp 671 hp55% c2",
+    "cand_label": "zone fight 1 hp 671 aggregate hp55% c2",
+    "base_move": [
+     0.656,
+     -0.755
+    ],
+    "cand_move": [
+     -0.933,
+     -0.36
+    ]
+   },
+   {
+    "name": "dodge-conflict-laser-sidestep+unseen-multi-threat-s1011-t11.0",
+    "category": "dodge-conflict",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 860 hp58% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.562,
+     0.827
+    ]
+   },
+   {
+    "name": "dodge-conflict-bullet+2att-multi-threat-s1014-t119.5",
+    "category": "dodge-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "zone fight 12 hp 950 hp37% c0",
+    "cand_label": "zone fight 12 hp 950 aggregate hp37% c0",
+    "base_move": [
+     0.366,
+     0.931
+    ],
+    "cand_move": [
+     -0.704,
+     0.71
+    ]
+   },
+   {
+    "name": "cover-conflict-tp+charging-multi-threat-s1011-t11.0",
+    "category": "cover-conflict",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 860 hp58% c0",
+    "cand_label": "zone fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.447,
+     0.894
+    ]
+   },
+   {
+    "name": "cover-conflict-tp+charging-multi-threat-s1011-t11.6",
+    "category": "cover-conflict",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 815 hp52% c0",
+    "cand_label": "zone fight 9 hp 815 aggregate hp52% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.667,
+     0.745
+    ]
+   },
+   {
+    "name": "cover-conflict-tp+charging-multi-threat-s1011-t11.9",
+    "category": "cover-conflict",
+    "reasons": [
+     "steps out of live laser line"
+    ],
+    "base_label": "zone fight 9 hp 770 hp49% c0",
+    "cand_label": "zone fight 9 hp 770 aggregate hp49% c0",
+    "base_move": [
+     -0.706,
+     0.708
+    ],
+    "cand_move": [
+     0.454,
+     0.891
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1023-t13.1",
+    "category": "unstick-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     0.999,
+     -0.038
+    ],
+    "cand_move": [
+     0.208,
+     0.978
+    ]
+   },
+   {
+    "name": "unstick-conflict-stalled+2att-multi-threat-s1023-t14.6",
+    "category": "unstick-conflict",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 7 hp 1175 hp78% c0",
+    "cand_label": "laser hunt fight 7 hp 1175 aggregate hp78% c0",
+    "base_move": [
+     0.999,
+     0.032
+    ],
+    "cand_move": [
+     -0.02,
+     1.0
+    ]
+   },
+   {
+    "name": "zone-pressure-edge+2att-multi-threat-s1011-t11.0",
+    "category": "zone-pressure",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 9 hp 860 hp58% c0",
+    "cand_label": "laser hunt fight 9 hp 860 aggregate hp58% c0",
+    "base_move": [
+     0.917,
+     -0.398
+    ],
+    "cand_move": [
+     0.447,
+     0.894
+    ]
+   },
+   {
+    "name": "zone-pressure-edge+2att-multi-threat-s1011-t11.3",
+    "category": "zone-pressure",
+    "reasons": [
+     "avoids walking at 2+ attackers"
+    ],
+    "base_label": "laser hunt fight 9 hp 860 hp55% c0",
+    "cand_label": "laser hunt fight 9 hp 860 aggregate hp55% c0",
+    "base_move": [
+     0.913,
+     -0.409
+    ],
+    "cand_move": [
+     0.506,
+     0.863
+    ]
+   }
+  ]
+ },
+ "note": "Static single-decision verdicts. 'uncertain' = differs but no proof either way. LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR"
+}

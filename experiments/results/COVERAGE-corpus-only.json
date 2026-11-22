@@ -1,0 +1,1147 @@
+{
+ "ref": "c8e98e1",
+ "scenarios": 3472,
+ "hypothesis": 0,
+ "functions": {
+  "_act": {
+   "lines": [
+    1402,
+    1627
+   ],
+   "branch_arcs": 114,
+   "taken": 80,
+   "pct": 70.2,
+   "untaken": [
+    {
+     "line": 1517,
+     "src": "if d > 2.0:",
+     "missing_to": [
+      1518,
+      1530
+     ]
+    },
+    {
+     "line": 1424,
+     "src": "if not recently_hit_any:",
+     "missing_to": [
+      1425,
+      1429
+     ]
+    },
+    {
+     "line": 1549,
+     "src": "if 2.0 < d <= 40.0:",
+     "missing_to": [
+      1550
+     ]
+    },
+    {
+     "line": 1426,
+     "src": "if self.non_our_deaths >= 2:",
+     "missing_to": [
+      1427,
+      1429
+     ]
+    },
+    {
+     "line": 1583,
+     "src": "if walk > self.step_speed:",
+     "missing_to": [
+      1584,
+      1590
+     ]
+    },
+    {
+     "line": 1541,
+     "src": "if d > 2.0:",
+     "missing_to": [
+      1542,
+      1590
+     ]
+    },
+    {
+     "line": 1537,
+     "src": "if on_roof is not None:",
+     "missing_to": [
+      1539
+     ]
+    },
+    {
+     "line": 1514,
+     "src": "if on_roof is not None:",
+     "missing_to": [
+      1515
+     ]
+    },
+    {
+     "line": 1465,
+     "src": "if dodge_boost:",
+     "missing_to": [
+      1466,
+      1467
+     ]
+    },
+    {
+     "line": 1564,
+     "src": "if USE_MORE_CUBES and not near_threat and self._shoot_crate(obs, weapons, act):",
+     "missing_to": [
+      1565
+     ]
+    },
+    {
+     "line": 1463,
+     "src": "if dodge_vec is not None:",
+     "missing_to": [
+      1464
+     ]
+    },
+    {
+     "line": 1604,
+     "src": "if not protect_drop:",
+     "missing_to": [
+      1620
+     ]
+    },
+    {
+     "line": 1573,
+     "src": "elif self._shoot_crate(obs, weapons, act):",
+     "missing_to": [
+      1574
+     ]
+    },
+    {
+     "line": 1580,
+     "src": "if (self.is_finals and me.get(\"in_zone\", True) and not act.get(\"boost\")",
+     "missing_to": [
+      1582
+     ]
+    },
+    {
+     "line": 1410,
+     "src": "if tid not in self.killed:",
+     "missing_to": [
+      1412
+     ]
+    },
+    {
+     "line": 1509,
+     "src": "elif tp_hit[2] is not None:",
+     "missing_to": [
+      1512
+     ]
+    },
+    {
+     "line": 1418,
+     "src": "if alive is not None:",
+     "missing_to": [
+      1431
+     ]
+    },
+    {
+     "line": 1602,
+     "src": "if movement != \"roof-climb\":",
+     "missing_to": [
+      1620
+     ]
+    },
+    {
+     "line": 1422,
+     "src": "if delta_deaths > 0:",
+     "missing_to": [
+      1423
+     ]
+    },
+    {
+     "line": 1414,
+     "src": "if spot is not None:",
+     "missing_to": [
+      1407
+     ]
+    },
+    {
+     "line": 1432,
+     "src": "if m.get(\"kind\") == \"mech\" and m.get(\"pos\") and m.get(\"id\") is not None:",
+     "missing_to": [
+      1431
+     ]
+    },
+    {
+     "line": 1554,
+     "src": "if self._shoot_drone(obs, weapons, act):",
+     "missing_to": [
+      1555
+     ]
+    },
+    {
+     "line": 1620,
+     "src": "if not holding_drop and movement != \"roof-climb\":",
+     "missing_to": [
+      1623
+     ]
+    },
+    {
+     "line": 1609,
+     "src": "if dodge_boost and not charging:",
+     "missing_to": [
+      1610,
+      1611
+     ]
+    },
+    {
+     "line": 1489,
+     "src": "if dist > 1e-6:",
+     "missing_to": [
+      1500
+     ]
+    },
+    {
+     "line": 1556,
+     "src": "elif self._shoot_beam_origin(obs, weapons, act):",
+     "missing_to": [
+      1557
+     ]
+    },
+    {
+     "line": 1607,
+     "src": "if dodge_vec is not None:",
+     "missing_to": [
+      1608
+     ]
+    }
+   ]
+  },
+  "_fight": {
+   "lines": [
+    1058,
+    1126
+   ],
+   "branch_arcs": 24,
+   "taken": 14,
+   "pct": 58.3,
+   "untaken": [
+    {
+     "line": 1119,
+     "src": "elif kind == \"lightning\":",
+     "missing_to": [
+      1080,
+      1120
+     ]
+    },
+    {
+     "line": 1095,
+     "src": "elif kind == \"laser\":",
+     "missing_to": [
+      1119
+     ]
+    },
+    {
+     "line": 1102,
+     "src": "if blocked and cur_charge > 0 and mechs:",
+     "missing_to": [
+      1103
+     ]
+    },
+    {
+     "line": 1104,
+     "src": "if alt is not None:",
+     "missing_to": [
+      1105,
+      1107
+     ]
+    },
+    {
+     "line": 1113,
+     "src": "if blocked and self.laser_full_since is not None and self._now - self.laser_full_since >= 1.6:",
+     "missing_to": [
+      1114
+     ]
+    },
+    {
+     "line": 1093,
+     "src": "if blocked and (weapon.get(\"reload\") or 0) <= 0 and (weapon.get(\"ammo\") is not None) and 0 < weapon[\"ammo\"] <=",
+     "missing_to": [
+      1094
+     ]
+    },
+    {
+     "line": 1121,
+     "src": "if not blocked and distance <= 0.9 * reach and me[\"energy\"] >= 10:",
+     "missing_to": [
+      1080,
+      1122
+     ]
+    }
+   ]
+  },
+  "_projectile_dodge": {
+   "lines": [
+    388,
+    473
+   ],
+   "branch_arcs": 44,
+   "taken": 11,
+   "pct": 25.0,
+   "untaken": [
+    {
+     "line": 471,
+     "src": "if valid is None:",
+     "missing_to": [
+      472,
+      473
+     ]
+    },
+    {
+     "line": 412,
+     "src": "if kind == \"mortar\":",
+     "missing_to": [
+      413
+     ]
+    },
+    {
+     "line": 440,
+     "src": "if rv2 <= 1.0:",
+     "missing_to": [
+      441
+     ]
+    },
+    {
+     "line": 456,
+     "src": "if vh > 1e-4:",
+     "missing_to": [
+      404,
+      457
+     ]
+    },
+    {
+     "line": 449,
+     "src": "if abs(dz) > 0.5 * my_h + 1.0:",
+     "missing_to": [
+      450,
+      451
+     ]
+    },
+    {
+     "line": 408,
+     "src": "if not pos or not vel:",
+     "missing_to": [
+      409
+     ]
+    },
+    {
+     "line": 436,
+     "src": "if kind == \"npc\" and ignore_npc:",
+     "missing_to": [
+      437
+     ]
+    },
+    {
+     "line": 444,
+     "src": "if not (0.20 <= t_hit <= 0.65):",
+     "missing_to": [
+      446
+     ]
+    },
+    {
+     "line": 417,
+     "src": "if disc < 0.0:",
+     "missing_to": [
+      418,
+      419
+     ]
+    },
+    {
+     "line": 428,
+     "src": "if urgency > best_urgency:",
+     "missing_to": [
+      404,
+      429
+     ]
+    },
+    {
+     "line": 413,
+     "src": "if ignore_mortar:",
+     "missing_to": [
+      414,
+      415
+     ]
+    },
+    {
+     "line": 452,
+     "src": "if d2 < my_r:",
+     "missing_to": [
+      404,
+      453
+     ]
+    },
+    {
+     "line": 426,
+     "src": "if d < self.mortar_splash:",
+     "missing_to": [
+      404,
+      427
+     ]
+    },
+    {
+     "line": 459,
+     "src": "if nx * mvx + ny * mvy > 0:",
+     "missing_to": [
+      460,
+      464
+     ]
+    },
+    {
+     "line": 454,
+     "src": "if urgency > best_urgency:",
+     "missing_to": [
+      404,
+      455
+     ]
+    },
+    {
+     "line": 420,
+     "src": "if not (0.05 <= t_land <= 2.4):",
+     "missing_to": [
+      421,
+      422
+     ]
+    },
+    {
+     "line": 435,
+     "src": "elif kind in (\"gun\", \"npc\"):",
+     "missing_to": [
+      404
+     ]
+    },
+    {
+     "line": 468,
+     "src": "if best_vec is None:",
+     "missing_to": [
+      470
+     ]
+    },
+    {
+     "line": 462,
+     "src": "if dx * nx + dy * ny < 0:",
+     "missing_to": [
+      463,
+      464
+     ]
+    },
+    {
+     "line": 458,
+     "src": "if d2 < 0.65 * my_r and m_speed > 1.0:",
+     "missing_to": [
+      459,
+      462
+     ]
+    }
+   ]
+  },
+  "_laser_sidestep": {
+   "lines": [
+    475,
+    518
+   ],
+   "branch_arcs": 24,
+   "taken": 20,
+   "pct": 83.3,
+   "untaken": [
+    {
+     "line": 506,
+     "src": "if math.dist((mx + 4 * cand_b[0], my + 4 * cand_b[1]), rc) < math.dist((mx + 4 * cand_a[0], my + 4 * cand_a[1]",
+     "missing_to": [
+      507,
+      512
+     ]
+    },
+    {
+     "line": 504,
+     "src": "if on_roof is not None:",
+     "missing_to": [
+      505
+     ]
+    },
+    {
+     "line": 489,
+     "src": "if not aim or aim[0] is None:",
+     "missing_to": [
+      490
+     ]
+    }
+   ]
+  },
+  "_anti_sandwich_move": {
+   "lines": [
+    1258,
+    1285
+   ],
+   "branch_arcs": 16,
+   "taken": 16,
+   "pct": 100.0,
+   "untaken": []
+  },
+  "_find_cover": {
+   "lines": [
+    520,
+    537
+   ],
+   "branch_arcs": 8,
+   "taken": 7,
+   "pct": 87.5,
+   "untaken": [
+    {
+     "line": 529,
+     "src": "if length == 0:",
+     "missing_to": [
+      530
+     ]
+    }
+   ]
+  },
+  "_heal": {
+   "lines": [
+    539,
+    597
+   ],
+   "branch_arcs": 24,
+   "taken": 18,
+   "pct": 75.0,
+   "untaken": [
+    {
+     "line": 587,
+     "src": "if distance > 3:",
+     "missing_to": [
+      595
+     ]
+    },
+    {
+     "line": 590,
+     "src": "elif threat is not None:",
+     "missing_to": [
+      595
+     ]
+    },
+    {
+     "line": 576,
+     "src": "if threat is None:",
+     "missing_to": [
+      577
+     ]
+    },
+    {
+     "line": 563,
+     "src": "elif self.last_mech_bearing is not None and now - self.last_mech_bearing[0] <= 10:",
+     "missing_to": [
+      567
+     ]
+    },
+    {
+     "line": 593,
+     "src": "if math.dist(ahead, zone[\"next_center\"]) <= zone[\"next_radius\"]:",
+     "missing_to": [
+      594
+     ]
+    },
+    {
+     "line": 567,
+     "src": "if on_roof is not None:",
+     "missing_to": [
+      568
+     ]
+    }
+   ]
+  },
+  "_should_push": {
+   "lines": [
+    1227,
+    1256
+   ],
+   "branch_arcs": 16,
+   "taken": 11,
+   "pct": 68.8,
+   "untaken": [
+    {
+     "line": 1238,
+     "src": "if hp is None or max_hp is None or hp > 0.5 * max_hp:",
+     "missing_to": [
+      1239,
+      1240
+     ]
+    },
+    {
+     "line": 1236,
+     "src": "if self.is_finals:",
+     "missing_to": [
+      1237
+     ]
+    },
+    {
+     "line": 1232,
+     "src": "if \"laser\" in (target.get(\"weapons\") or []) and not my_laser:",
+     "missing_to": [
+      1233
+     ]
+    },
+    {
+     "line": 1247,
+     "src": "if USE_NO_LASER_CAUTION and not has_laser and \"laser\" in t_weapons and (hp is None or hp > 0.5 * me[\"hp\"]):",
+     "missing_to": [
+      1248
+     ]
+    }
+   ]
+  },
+  "_choose_target": {
+   "lines": [
+    648,
+    703
+   ],
+   "branch_arcs": 24,
+   "taken": 20,
+   "pct": 83.3,
+   "untaken": [
+    {
+     "line": 690,
+     "src": "if eff_hp is None:",
+     "missing_to": [
+      691
+     ]
+    },
+    {
+     "line": 700,
+     "src": "if cur_eff is None or best_eff is None or best_eff >= 0.6 * cur_eff:",
+     "missing_to": [
+      702
+     ]
+    },
+    {
+     "line": 685,
+     "src": "if now >= LATE_T and not recent and distance > self.near_range:",
+     "missing_to": [
+      686
+     ]
+    },
+    {
+     "line": 683,
+     "src": "if under_fire and not recent and distance > self.near_range and not (hp is not None and hp <= laser_damage):",
+     "missing_to": [
+      684
+     ]
+    }
+   ]
+  },
+  "_apply_unstick": {
+   "lines": [
+    1300,
+    1331
+   ],
+   "branch_arcs": 14,
+   "taken": 14,
+   "pct": 100.0,
+   "untaken": []
+  },
+  "_face_bearing": {
+   "lines": [
+    1348,
+    1359
+   ],
+   "branch_arcs": 8,
+   "taken": 6,
+   "pct": 75.0,
+   "untaken": [
+    {
+     "line": 1351,
+     "src": "if self.last_beam_threat is not None and now - self.last_beam_threat[0] <= 3.0:",
+     "missing_to": [
+      1352
+     ]
+    },
+    {
+     "line": 1357,
+     "src": "if self.last_sound is not None and now - self.last_sound[0] <= 2:",
+     "missing_to": [
+      1358
+     ]
+    }
+   ]
+  },
+  "_movement": {
+   "lines": [
+    786,
+    951
+   ],
+   "branch_arcs": 74,
+   "taken": 40,
+   "pct": 54.1,
+   "untaken": [
+    {
+     "line": 937,
+     "src": "elif d_climb <= 6.0:",
+     "missing_to": [
+      938,
+      945
+     ]
+    },
+    {
+     "line": 834,
+     "src": "if (pickup_id in visible and distance <= self.reach and abs(dz) <= 4.0",
+     "missing_to": [
+      836
+     ]
+    },
+    {
+     "line": 867,
+     "src": "if holding_drop:",
+     "missing_to": [
+      868
+     ]
+    },
+    {
+     "line": 927,
+     "src": "if self.roof_goal is None:",
+     "missing_to": [
+      928,
+      929
+     ]
+    },
+    {
+     "line": 901,
+     "src": "if on_roof is not None and math.dist(on_roof[1], zone[\"next_center\"]) <= zone[\"next_radius\"] - 4.0:",
+     "missing_to": [
+      902,
+      912
+     ]
+    },
+    {
+     "line": 899,
+     "src": "elif (now >= LATE_T or self.is_finals) and has_laser and not outside and self.roofs:",
+     "missing_to": [
+      900
+     ]
+    },
+    {
+     "line": 837,
+     "src": "if not slot_empty and lightning_slot is not None and kind == \"laser\":",
+     "missing_to": [
+      838,
+      840
+     ]
+    },
+    {
+     "line": 939,
+     "src": "if climb_started is None:",
+     "missing_to": [
+      940,
+      941
+     ]
+    },
+    {
+     "line": 912,
+     "src": "elif not enemy_close:",
+     "missing_to": [
+      913,
+      949
+     ]
+    },
+    {
+     "line": 932,
+     "src": "if mz >= top - 0.5:",
+     "missing_to": [
+      933,
+      937
+     ]
+    },
+    {
+     "line": 906,
+     "src": "if dc <= 4.0:",
+     "missing_to": [
+      907,
+      909
+     ]
+    },
+    {
+     "line": 917,
+     "src": "if d_now < w_best - 1.0:",
+     "missing_to": [
+      918,
+      921
+     ]
+    },
+    {
+     "line": 923,
+     "src": "if out_of_zone or walk_timed_out or climb_timed_out:",
+     "missing_to": [
+      924,
+      927
+     ]
+    },
+    {
+     "line": 895,
+     "src": "if hunt_pickup is not None and hunt_pickup[\"pos\"][2] - mz > 3.5 and best_hunt[1] <= 12.0:",
+     "missing_to": [
+      896
+     ]
+    },
+    {
+     "line": 913,
+     "src": "if self.roof_goal is not None:",
+     "missing_to": [
+      914,
+      927
+     ]
+    },
+    {
+     "line": 896,
+     "src": "if me.get(\"energy\", 0) >= 15:",
+     "missing_to": [
+      897,
+      949
+     ]
+    },
+    {
+     "line": 929,
+     "src": "if self.roof_goal is not None:",
+     "missing_to": [
+      930,
+      949
+     ]
+    },
+    {
+     "line": 924,
+     "src": "if walk_timed_out or climb_timed_out:",
+     "missing_to": [
+      925,
+      926
+     ]
+    },
+    {
+     "line": 796,
+     "src": "if pickup_id not in visible and math.dist(xy, pickup[\"pos\"][:2]) <= 6:",
+     "missing_to": [
+      797
+     ]
+    },
+    {
+     "line": 799,
+     "src": "if event.get(\"type\") in (\"took\", \"take_failed\"):",
+     "missing_to": [
+      800
+     ]
+    }
+   ]
+  },
+  "_laser_guard": {
+   "lines": [
+    1361,
+    1384
+   ],
+   "branch_arcs": 10,
+   "taken": 5,
+   "pct": 50.0,
+   "untaken": [
+    {
+     "line": 1367,
+     "src": "if fire[i] or self.laser_released or self.healing or not me.get(\"in_zone\", True):",
+     "missing_to": [
+      1369
+     ]
+    },
+    {
+     "line": 1380,
+     "src": "if actual[0] is not None and abs(math.remainder(aim[0] - actual[0], math.tau)) > math.radians(30):",
+     "missing_to": [
+      1381,
+      1382
+     ]
+    },
+    {
+     "line": 1376,
+     "src": "if pick is None:",
+     "missing_to": [
+      1377,
+      1378
+     ]
+    }
+   ]
+  },
+  "_shoot_drone": {
+   "lines": [
+    1162,
+    1191
+   ],
+   "branch_arcs": 14,
+   "taken": 4,
+   "pct": 28.6,
+   "untaken": [
+    {
+     "line": 1170,
+     "src": "if m.get(\"kind\") != \"npc\" or not m.get(\"pos\"):",
+     "missing_to": [
+      1172
+     ]
+    },
+    {
+     "line": 1185,
+     "src": "if best is None or rank < best[1]:",
+     "missing_to": [
+      1169,
+      1186
+     ]
+    },
+    {
+     "line": 1178,
+     "src": "if not (attacking_us or farm_ok):",
+     "missing_to": [
+      1179,
+      1180
+     ]
+    },
+    {
+     "line": 1180,
+     "src": "if abs(dz) > 4.0 or math.dist(m[\"pos\"][:2], zone[\"next_center\"]) > zone[\"next_radius\"]:",
+     "missing_to": [
+      1181,
+      1182
+     ]
+    },
+    {
+     "line": 1182,
+     "src": "if self._target_blocked(me, m):",
+     "missing_to": [
+      1183,
+      1184
+     ]
+    },
+    {
+     "line": 1187,
+     "src": "if best is None:",
+     "missing_to": [
+      1189
+     ]
+    }
+   ]
+  },
+  "_shoot_crate": {
+   "lines": [
+    1193,
+    1225
+   ],
+   "branch_arcs": 10,
+   "taken": 2,
+   "pct": 20.0,
+   "untaken": [
+    {
+     "line": 1223,
+     "src": "if gun_slot is not None:",
+     "missing_to": [
+      1224,
+      1225
+     ]
+    },
+    {
+     "line": 1201,
+     "src": "if (distance <= CRATE_RANGE and abs(cz - z) <= 3 and (best is None or distance < best[1])",
+     "missing_to": [
+      1198,
+      1203
+     ]
+    },
+    {
+     "line": 1216,
+     "src": "if laser_slot is not None:",
+     "missing_to": [
+      1217,
+      1222
+     ]
+    },
+    {
+     "line": 1204,
+     "src": "if best is None:",
+     "missing_to": [
+      1206
+     ]
+    },
+    {
+     "line": 1198,
+     "src": "for crate in obs.get(\"crates\") or []:",
+     "missing_to": [
+      1199
+     ]
+    }
+   ]
+  },
+  "_shoot_beam_origin": {
+   "lines": [
+    1128,
+    1153
+   ],
+   "branch_arcs": 10,
+   "taken": 1,
+   "pct": 10.0,
+   "untaken": [
+    {
+     "line": 1129,
+     "src": "if self.last_beam_threat is None:",
+     "missing_to": [
+      1131
+     ]
+    },
+    {
+     "line": 1138,
+     "src": "if dist > self.gun_range or dist < 5.0 or self._building_blocked(muzzle_pos, aim_pt):",
+     "missing_to": [
+      1139,
+      1140
+     ]
+    },
+    {
+     "line": 1149,
+     "src": "for i, w in enumerate(weapons[:2]):",
+     "missing_to": [
+      1150,
+      1153
+     ]
+    },
+    {
+     "line": 1150,
+     "src": "if w and w[\"kind\"] == \"gun\" and (w.get(\"reload\") or 0) <= 0 and (w.get(\"ammo\") is None or w[\"ammo\"] > 0):",
+     "missing_to": [
+      1149,
+      1151
+     ]
+    },
+    {
+     "line": 1132,
+     "src": "if obs[\"t\"] - fired_at > 0.8 or len(origin) < 3:",
+     "missing_to": [
+      1133,
+      1134
+     ]
+    }
+   ]
+  },
+  "_drop_goal": {
+   "lines": [
+    705,
+    746
+   ],
+   "branch_arcs": 22,
+   "taken": 19,
+   "pct": 86.4,
+   "untaken": [
+    {
+     "line": 726,
+     "src": "if now - first_c >= DROP_CONTEST_ABORT_S:",
+     "missing_to": [
+      727
+     ]
+    },
+    {
+     "line": 728,
+     "src": "elif active:",
+     "missing_to": [
+      730
+     ]
+    },
+    {
+     "line": 719,
+     "src": "if active and in_ring:",
+     "missing_to": [
+      720
+     ]
+    }
+   ]
+  },
+  "_cube_goal": {
+   "lines": [
+    748,
+    784
+   ],
+   "branch_arcs": 14,
+   "taken": 13,
+   "pct": 92.9,
+   "untaken": [
+    {
+     "line": 779,
+     "src": "elif now - since >= 4:",
+     "missing_to": [
+      780
+     ]
+    }
+   ]
+  },
+  "_rotate_move_safe": {
+   "lines": [
+    1287,
+    1298
+   ],
+   "branch_arcs": 6,
+   "taken": 5,
+   "pct": 83.3,
+   "untaken": [
+    {
+     "line": 1289,
+     "src": "if math.hypot(mx, my) <= 1e-6:",
+     "missing_to": [
+      1290
+     ]
+    }
+   ]
+  },
+  "_on_body": {
+   "lines": [
+    997,
+    1018
+   ],
+   "branch_arcs": 8,
+   "taken": 5,
+   "pct": 62.5,
+   "untaken": [
+    {
+     "line": 998,
+     "src": "if not actual or None in actual or distance <= 1e-6:",
+     "missing_to": [
+      999
+     ]
+    },
+    {
+     "line": 1000,
+     "src": "if target.get(\"kind\") == \"npc\":",
+     "missing_to": [
+      1001
+     ]
+    },
+    {
+     "line": 1014,
+     "src": "if self.laser_full_since is not None and self._now - self.laser_full_since >= 0.8:",
+     "missing_to": [
+      1015
+     ]
+    }
+   ]
+  },
+  "_laser_ready": {
+   "lines": [
+    1020,
+    1032
+   ],
+   "branch_arcs": 6,
+   "taken": 5,
+   "pct": 83.3,
+   "untaken": [
+    {
+     "line": 1029,
+     "src": "if self._target_blocked(me, target):",
+     "missing_to": [
+      1030
+     ]
+    }
+   ]
+  }
+ },
+ "tactical_pct": 64.5,
+ "tactical_arcs": [
+  316,
+  490
+ ]
+}

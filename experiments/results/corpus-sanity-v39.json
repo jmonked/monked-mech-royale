@@ -1,0 +1,89 @@
+{
+ "name": "sanity-v39",
+ "base": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "candidate": "c8e98e18b1471388bdeee6f2e090568393af446b",
+ "timestamp": "2026-11-21T23:41:18",
+ "scenarios": 4472,
+ "verdicts": {
+  "identical": 4472,
+  "safer": 0,
+  "worse": 0,
+  "uncertain": 0,
+  "catastrophic": 0
+ },
+ "by_category": {
+  "multi-threat": {
+   "identical": 711,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "laser-crossfire": {
+   "identical": 514,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "dodge-conflict": {
+   "identical": 500,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "cover-conflict": {
+   "identical": 540,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "unstick-conflict": {
+   "identical": 612,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "sound-boundaries": {
+   "identical": 259,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "zone-pressure": {
+   "identical": 322,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "regression": {
+   "identical": 14,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  },
+  "hypothesis": {
+   "identical": 1000,
+   "safer": 0,
+   "worse": 0,
+   "uncertain": 0,
+   "catastrophic": 0
+  }
+ },
+ "fields_changed": {},
+ "reasons": {},
+ "activation_tokens": {},
+ "coverage": null,
+ "examples": {
+  "catastrophic": [],
+  "worse": [],
+  "safer": []
+ },
+ "note": "Static single-decision verdicts. 'uncertain' = differs but no proof either way. LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR"
+}

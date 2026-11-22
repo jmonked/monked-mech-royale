@@ -40,11 +40,12 @@ RECONVERGE_N = 10          # identical consecutive decisions after a difference 
 HISTORY = [
     ("c8e98e1", "v39 base", 4.73), ("5bab1a0", "v60 wedge priority over cover", 4.71),
     ("cca2fdd", "v61 push more (v30 thresholds)", 4.52), ("2a72fc1", "v63 threat gate on push", 4.69),
-    ("5c11581", "v64 no farming past 10 cubes", 4.73), ("1390727", "v65 no third-party cover", 4.72),
+    ("5c11581", "v64 no farming past 10 cubes", 4.73), ("1390727", "v65 no third-party cover", 4.73),
     ("b465f38", "v66 no near-sound override", 4.54), ("84ea2fd", "v70 no lightning-short guard", 4.73),
     ("a023e35", "v62 aggregate multi-threat movement", None), ("e7c4c5f", "v67 no reload cover", None),
     ("6f9ffa8", "v68 no early zone-run", None), ("80a2182", "v69 no FFA third-party", None),
-    ("1c4827e", "v71 near-sound 0.9 s", None),
+    ("1c4827e", "v71 near-sound 0.9 s", 4.73),
+    ("e02ddaa", "TOOLING ONLY (example_bot.py == v39) - submitted by mistake", 4.73),
 ]
 
 
@@ -394,7 +395,7 @@ def cmd_record(a):
             p = os.path.join(RESULTS, fn)
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
-            if d.get("candidate", "").startswith(a.candidate):
+            if "summary" in d and "matches" in d and d.get("candidate", "").startswith(a.candidate):
                 hits.append((p, d))
     if not hits:
         sys.exit(f"no result file has candidate {a.candidate}; run compare first")
@@ -409,6 +410,89 @@ def cmd_record(a):
         print(f"recorded {a.score} for {d['candidate'][:12]} in {os.path.basename(p)} (delta {d['official_delta']})")
 
 
+def changed_lines(base_src, cand_src):
+    import difflib
+    out = []
+    sm = difflib.SequenceMatcher(None, base_src.splitlines(), cand_src.splitlines(), autojunk=False)
+    for tag, _i1, _i2, j1, j2 in sm.get_opcodes():
+        if tag in ("replace", "insert"):
+            out.extend(range(j1 + 1, j2 + 1))
+    return out
+
+
+def cmd_corpus(a):
+    """Base vs candidate over the saved scenario corpus (+ optional Hypothesis sample): conservative verdicts."""
+    sys.path.insert(0, HERE)
+    sys.path.insert(0, os.path.join(ROOT, "tests"))
+    import scenario_lab as lab
+    import tactical_rules as rules
+    import tactical_coverage as tcov
+    base, cand = git_full(a.base), git_full(a.candidate)
+    scs = lab.load_corpus(a.categories.split(",") if a.categories else None)
+    if a.hypothesis:
+        import combat_strategies as cs
+        scs += cs.sample_scenarios(a.hypothesis, seed=a.hyp_seed)
+    rb_, rc_ = lab.runner(base), lab.runner(cand)
+    verdicts = {"identical": 0, "safer": 0, "worse": 0, "uncertain": 0, "catastrophic": 0}
+    fields, reasons, activation, by_cat, examples = {}, {}, {}, {}, {"catastrophic": [], "worse": [], "safer": []}
+    for sc in scs:
+        rb = rb_.run(sc)
+        rc = rc_.run(sc)
+        v, why = rules.classify(sc, rb["bot"], rb, rc)
+        verdicts[v] += 1
+        cat = sc.get("category", "?")
+        by_cat.setdefault(cat, {k: 0 for k in verdicts})[v] += 1
+        if v != "identical":
+            for f in diff_fields(rb["action"], rc["action"]):
+                fields[f] = fields.get(f, 0) + 1
+            for r in why:
+                reasons[r] = reasons.get(r, 0) + 1
+        for tok in set(rc["label"].split()) - set(rb["label"].split()):
+            if tok.isalpha() or "-" in tok:
+                activation[tok] = activation.get(tok, 0) + 1
+        if v in examples and len(examples[v]) < 12:
+            examples[v].append({"name": sc.get("name"), "category": cat, "reasons": why, "base_label": rb["label"],
+                                "cand_label": rc["label"], "base_move": r3(rb["action"].get("move")),
+                                "cand_move": r3(rc["action"].get("move"))})
+    cov = None
+    if a.coverage:
+        cl = changed_lines(open(rb_.module_file, encoding="utf-8").read(), open(rc_.module_file, encoding="utf-8").read())
+        cov = tcov.measure(cand, scs, 0, changed_lines=cl)
+        cov = {"tactical_pct": cov["tactical_pct"], "tactical_arcs": cov["tactical_arcs"],
+               "changed_lines_reached": cov.get("changed_lines_reached")}
+    data = {"name": a.name, "base": base, "candidate": cand, "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+            "scenarios": len(scs), "verdicts": verdicts, "by_category": by_cat, "fields_changed": fields,
+            "reasons": reasons, "activation_tokens": activation, "coverage": cov, "examples": examples,
+            "note": "Static single-decision verdicts. 'uncertain' = differs but no proof either way. " + LOCAL_NOTE}
+    os.makedirs(RESULTS, exist_ok=True)
+    path = os.path.join(RESULTS, f"corpus-{a.name}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+    div = len(scs) - verdicts["identical"]
+    lines = [f"# Corpus check - {a.name}", "", f"- Base: `{base}`", f"- Candidate: `{cand}`",
+             f"- Scenario corpus: {len(scs)}", f"- Candidate diverged: {div}",
+             f"- Clearly safer: {verdicts['safer']}", f"- Clearly worse: {verdicts['worse']}",
+             f"- Neutral/uncertain: {verdicts['uncertain']}", f"- Catastrophic regressions: {verdicts['catastrophic']}",
+             f"- Action fields changed: {fields or '-'}", f"- Activation tokens (in candidate label only): {activation or '-'}"]
+    if cov:
+        lines.append(f"- Candidate tactical branch coverage: {cov['tactical_arcs'][0]}/{cov['tactical_arcs'][1]} "
+                     f"({cov['tactical_pct']}%); changed lines reached: {cov['changed_lines_reached']}")
+    lines += ["", "| Category | identical | safer | worse | uncertain | catastrophic |", "|---|---|---|---|---|---|"]
+    lines += [f"| {c} | {v['identical']} | {v['safer']} | {v['worse']} | {v['uncertain']} | {v['catastrophic']} |"
+              for c, v in sorted(by_cat.items())]
+    lines += ["", "## Reasons", ""] + [f"- {k}: {v}" for k, v in sorted(reasons.items(), key=lambda kv: -kv[1])]
+    for k in ("catastrophic", "worse", "safer"):
+        if examples[k]:
+            lines += ["", f"## {k} examples", ""] + [f"- `{e['name']}` {e['reasons']} | base `{e['base_label']}` "
+                                                     f"{e['base_move']} -> cand `{e['cand_label']}` {e['cand_move']}"
+                                                     for e in examples[k]]
+    with open(os.path.join(RESULTS, f"corpus-{a.name}.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print("\n".join(lines[:13]))
+    print(f"wrote {path} and .md")
+    return verdicts["catastrophic"]
+
+
 def cmd_table(_a):
     os.makedirs(RESULTS, exist_ok=True)
     runs = {}
@@ -416,7 +500,8 @@ def cmd_table(_a):
         if fn.endswith(".json"):
             with open(os.path.join(RESULTS, fn), encoding="utf-8") as f:
                 d = json.load(f)
-            runs[d["candidate"][:7]] = d
+            if "summary" in d and "matches" in d:      # match-compare results only (not corpus/coverage files)
+                runs[d["candidate"][:7]] = d
     rows = ["| Commit | Mechanism | Decisions changed locally | Matches diverged | Official score | Δ vs 4.73 |",
             "|---|---|---|---|---|---|"]
     listed = set()
@@ -460,8 +545,16 @@ def main():
     r.add_argument("--submission")
     r.add_argument("--base-score", type=float)
     sp.add_parser("table")
+    k = sp.add_parser("corpus", help="base vs candidate over the saved scenario corpus")
+    k.add_argument("--base", default="c8e98e1")
+    k.add_argument("--candidate", required=True)
+    k.add_argument("--name", required=True)
+    k.add_argument("--categories", help="comma list; default all")
+    k.add_argument("--hypothesis", type=int, default=0, help="also run N generated flat-world combat states")
+    k.add_argument("--hyp-seed", type=int, default=11)
+    k.add_argument("--coverage", action="store_true", help="branch coverage of the candidate + changed lines reached")
     a = ap.parse_args()
-    {"compare": cmd_compare, "record-score": cmd_record, "table": cmd_table}[a.cmd](a)
+    {"compare": cmd_compare, "record-score": cmd_record, "table": cmd_table, "corpus": cmd_corpus}[a.cmd](a)
 
 
 if __name__ == "__main__":

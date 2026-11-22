@@ -1,0 +1,4 @@
+# Development/testing only. The submitted bot (example_bot.py) is standard library and must never import these.
+hypothesis>=6.170
+coverage>=7.17
+pytest-xdist>=3.8

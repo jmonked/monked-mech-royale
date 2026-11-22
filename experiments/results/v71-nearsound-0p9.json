@@ -12,7 +12,7 @@
   1005
  ],
  "official_base": 4.73,
- "official_candidate": null,
+ "official_candidate": 4.73,
  "submission": null,
  "local_note": "LOCAL ONLY - NOT AN OFFICIAL SCORE PREDICTOR",
  "matches": [
@@ -576,5 +576,5 @@
    "aim": 8
   }
  },
- "official_delta": null
+ "official_delta": 0.0
 }
