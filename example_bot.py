@@ -14,6 +14,7 @@ USE_NO_LASER_CAUTION = True  # point 15: without a laser, don't push a laser hol
 USE_MORE_CUBES = True        # point 16: break crates when no mech is within 120 m (don't skip for 180 m mechs)
 USE_ZONE_EARLY = True        # point 17: head straight into next circle before shrink runs out
 USE_FFA_THIRD_PARTY = True   # point 11: in Finals FFA, prioritize mechs actively losing HP to other bots
+USE_SHORT_GUARD = False      # ablation: v39 lightning-short laser guard off (True = v39)
 
 THREAT_RECENT_S = 3.0  # an attacker counts as "shooting us now" for this long after a hit
 THREAT_RANGE = 60.0    # ...and only while it is this close
@@ -1095,7 +1096,7 @@ class Bot:
             elif kind == "laser":
                 reach = _stat(stats, "range", self.laser.get("range", 280))
                 cur_charge = weapon.get("charge") or 0
-                shorted = self._now < self.short_until
+                shorted = USE_SHORT_GUARD and self._now < self.short_until
                 if not shorted and distance <= reach and ((cur_charge == 0 and weapon.get("cooldown", 0) <= 0 and not blocked)
                                                           or cur_charge > 0):
                     laser_tgt = target
