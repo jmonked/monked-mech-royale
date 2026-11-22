@@ -1502,7 +1502,7 @@ class Bot:
                  if aid != target["id"] and now - t_hit <= 2.5),
                 default=None,
             )
-            if tp_hit is not None and not finishing and not holding_drop and movement != "roof-climb":
+            if tp_hit is not None and escape is None and not finishing and not holding_drop and movement != "roof-climb":
                 tp_m = next((m for m in mechs if m.get("id") == tp_hit[1] and m.get("pos")), None)
                 if tp_m is not None:
                     tp_threat = tp_m["pos"][:2]
@@ -1527,7 +1527,7 @@ class Bot:
                             act["boost"] = me.get("energy", 0) >= 30 and d > 10 and not charging
                             state += " tp-cover"
             # Point 14: step behind cover while gun is reloading, laser is busy, and target is shooting us.
-            if USE_RELOAD_COVER and not finishing and not pushing and not holding_drop and movement != "roof-climb" and "tp-cover" not in state:
+            if USE_RELOAD_COVER and escape is None and not finishing and not pushing and not holding_drop and movement != "roof-climb" and "tp-cover" not in state:
                 reloading = any(w and w["kind"] == "gun" and (w.get("reload") or 0) > 0.6 for w in weapons[:2])
                 laser_busy = all(not (w and w["kind"] == "laser") or (w.get("cooldown") or 0) > 0.5 for w in weapons[:2])
                 hit = self.last_hits.get(target["id"])
