@@ -2,3 +2,4 @@
 hypothesis>=6.170
 coverage>=7.17
 pytest-xdist>=3.8
+crosshair-tool>=0.0.114   # symbolic checks of the v72 decision kernel (tools/crosshair_props.py)

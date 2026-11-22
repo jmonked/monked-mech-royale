@@ -42,6 +42,8 @@ def main():
     ap.add_argument("--hypothesis", default="(not stated)")
     ap.add_argument("--focused", help="shell command for the candidate's focused test (exit 0 = pass)")
     ap.add_argument("--quick", action="store_true", help="skip pytest/corpus (git + gameplay + runtime only)")
+    ap.add_argument("--dynamic-matches", type=int, default=24, help="local match profile size (0 = skip)")
+    ap.add_argument("--dynamic-from", help="reuse an existing experiments/results/<compare>.json for this candidate")
     a = ap.parse_args()
     card, fails = {}, []
 
@@ -132,8 +134,46 @@ def main():
             card["Crash check (6 matches)"] = "HUNG (timeout)"
             fails.append("crash check hung")
 
+    dyn = {}
+    if a.dynamic_from or a.dynamic_matches:
+        import json
+        path = a.dynamic_from
+        if not path:
+            name = f"gate-dynamic-{cand[:7]}"
+            run([sys.executable, os.path.join(HERE, "experiment_harness.py"), "compare", "--base", base, "--candidate",
+                 cand, "--name", name, "--matches", str(a.dynamic_matches)], cwd=ROOT, timeout=7200)
+            path = os.path.join(ROOT, "experiments", "results", name + ".json")
+        with open(path, encoding="utf-8") as fh:
+            dd = json.load(fh)
+        if dd.get("candidate") != cand:
+            fails.append(f"dynamic profile {path} is for {dd.get('candidate')}, not the candidate")
+        better = worse = same = pb = pw = large = 0
+        for m in dd["matches"]:
+            pw_ = m["paired"]
+            if not m["first_divergence"] or not pw_["windows"].get("3s"):
+                continue
+            w = pw_["windows"]["3s"]
+            dlt = w["candidate"]["hp_delta"] - w["base"]["hp_delta"]
+            better += dlt > 0
+            worse += dlt < 0
+            same += dlt == 0
+            bp, cp = pw_["base_outcome"]["place"], pw_["candidate_outcome"]["place"]
+            pb += cp < bp
+            pw += cp > bp
+            large += (dlt < -200 or (w["candidate"]["died_in_window"] and not w["base"]["died_in_window"]) or cp - bp >= 2)
+        dyn = {"profile": f"{os.path.basename(path)} ({dd['summary']['matches']} matches, "
+                          f"{dd['summary']['matches_diverged']} diverged, {dd['summary']['differing']} decisions differ)",
+               "better (+3 s HP)": better, "worse (+3 s HP)": worse, "same (+3 s HP)": same,
+               "local placement better": pb, "local placement worse": pw, "large regressions": large}
+        if large:
+            fails.append(f"dynamic: {large} large local regressions (>200 HP worse at +3 s, died in window, or 2+ places)")
+
     verdict = "READY" if not fails else "NOT READY"
-    lines = [f"{k}: {v}" for k, v in card.items()] + ["", verdict] + [f"  - {f}" for f in fails]
+    lines = [f"{k}: {v}" for k, v in card.items()]
+    if dyn:
+        lines += ["", "Dynamic downstream (LOCAL ONLY - not an official score predictor; separate from static verdicts):"]
+        lines += [f"  {k}: {v}" for k, v in dyn.items()]
+    lines += ["", verdict] + [f"  - {f}" for f in fails]
     text = "\n".join(lines)
     print(text)
     os.makedirs(os.path.join(ROOT, "experiments", "results"), exist_ok=True)

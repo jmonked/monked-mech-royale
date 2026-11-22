@@ -223,7 +223,8 @@ def harvest(ref, seeds, per_cat=25, every=3, regression_window=None):
                 rn.label = ""
                 a = super().act(obs)
                 label = rn.label
-                for cat in classify(self, obs, label):
+                in_win = regression_window and regression_window[0] == seed and                     regression_window[1] <= obs["t"] <= regression_window[2]
+                for cat in (classify(self, obs, label) or (["regression"] if in_win else [])):
                     counts[cat] += 1
                     win = regression_window and regression_window[0] == seed and \
                         regression_window[1] <= obs["t"] <= regression_window[2]

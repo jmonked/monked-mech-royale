@@ -96,3 +96,14 @@ and must not be committed. Nothing was configured or exposed during this task.
 - Generated states never put our mech exactly on the zone centre (atan2(+-0, +-0) depends on the sign of zero).
 - Generated enemies never aim with exactly zero error: v39 picks the laser-sidestep side from the sign of our offset
   from the beam line, so a dead-centre beam makes the side depend on float rounding (either side is equally good).
+
+## CrossHair layer (symbolic, final pre-submission check)
+
+- `tools/crosshair_mech.py`: pure typed kernels traceable to v72 `_aggregate_threat_move` + its `_act` gate (and v62
+  for comparison); `extract()` feeds them from a live bot. `tests/test_crosshair_parity.py` proves kernel == real
+  method on every corpus call (414 calls, 69 activations, 0 mismatches) and gate == real on every corpus state.
+- `tools/crosshair_props.py`: invariants A-I in asserts mode
+  (`crosshair check tools/crosshair_props.py --analysis_kind=asserts --per_condition_timeout=90`) and diffbehavior
+  wrappers (`stock_identity` vs `v72_outside_activation` / `v72_locked`; `v62_bounded` vs `v72_bounded`).
+- `tests/test_crosshair_cover.py`: 568 `crosshair cover --coverage_type=path` cases pinned as regression tests.
+- Trig is concretised by CrossHair, so this is concolic search within a budget, not a proof over all reals.
